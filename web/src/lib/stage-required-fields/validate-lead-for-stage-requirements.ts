@@ -1,3 +1,4 @@
+import { humanizeMissingRequirementToken } from "./lead-field-labels";
 import type { StageRequiredField } from "./stage-required-fields-service";
 
 export type LeadSnapshotForRequirements = {
@@ -93,9 +94,15 @@ export function listMissingStageRequirements(
   return missing;
 }
 
-export function formatMissingRequirementsMessage(missing: string[]): string {
+export function formatMissingRequirementsMessage(
+  missing: string[],
+  customKeyToLabel: Record<string, string> = {}
+): string {
   if (missing.length === 0) {
     return "";
   }
-  return `Campos obrigatórios faltando: ${missing.join(", ")}`;
+  const labels = missing.map((token) =>
+    humanizeMissingRequirementToken(token, customKeyToLabel)
+  );
+  return `Campos obrigatórios faltando: ${labels.join(", ")}`;
 }

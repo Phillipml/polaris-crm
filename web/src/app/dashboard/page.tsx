@@ -20,6 +20,7 @@ import {
   type Lead,
 } from "@/lib/leads/leads-service";
 import type { Json } from "@/lib/supabase/database.types";
+import { STANDARD_LEAD_FIELD_LABELS } from "@/lib/stage-required-fields/lead-field-labels";
 import {
   formatMissingRequirementsMessage,
   listMissingStageRequirements,
@@ -27,19 +28,6 @@ import {
 } from "@/lib/stage-required-fields/validate-lead-for-stage-requirements";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
-
-const STANDARD_FIELD_LABELS: Record<string, string> = {
-  full_name: "Nome",
-  company_name: "Empresa",
-  email: "E-mail",
-  phone: "Telefone",
-  job_title: "Cargo",
-  linkedin_url: "LinkedIn",
-  source: "Origem",
-  status: "Status",
-  notes: "Notas",
-  owner_user_id: "Responsável (UUID do usuário)",
-};
 
 const PRIMARY_CREATE_STANDARD = new Set([
   "full_name",
@@ -90,8 +78,16 @@ export default function DashboardPage() {
   });
   const { definitions: leadFieldDefinitions } = useLeadCustomFieldDefinitions({
     workspaceId: workspaceId ?? undefined,
-    enabled: Boolean(workspaceId && showCreateForm),
+    enabled: Boolean(workspaceId),
   });
+
+  const customKeyToLabel = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const item of leadFieldDefinitions) {
+      map[item.key] = item.label;
+    }
+    return map;
+  }, [leadFieldDefinitions]);
 
   const extraStandardRequirements = useMemo(
     () =>
@@ -185,7 +181,7 @@ export default function DashboardPage() {
       );
     } catch (err) {
       setBoardLeads(prevBoardLeads);
-      setDragError(readTransitionError(err));
+      setDragError(readTransitionError(err, customKeyToLabel));
     }
   }
 
@@ -235,7 +231,9 @@ export default function DashboardPage() {
       snapshot
     );
     if (missing.length > 0) {
-      setCreateError(formatMissingRequirementsMessage(missing));
+      setCreateError(
+        formatMissingRequirementsMessage(missing, customKeyToLabel)
+      );
       return;
     }
 
@@ -359,7 +357,8 @@ export default function DashboardPage() {
                       }))
                     }
                     placeholder={
-                      STANDARD_FIELD_LABELS[row.field_key] ?? row.field_key
+                      STANDARD_LEAD_FIELD_LABELS[row.field_key] ??
+                      row.field_key
                     }
                     className="rounded-lg border border-(--border) bg-(--surface-hover)/40 px-3 py-2 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25 md:col-span-1 xl:col-span-2"
                   />
@@ -555,7 +554,10 @@ export default function DashboardPage() {
   );
 }
 
-function readTransitionError(err: unknown): string {
+function readTransitionError(
+  err: unknown,
+  customKeyToLabel: Record<string, string>
+): string {
   if (!(err instanceof Error)) {
     return "Não foi possível mover o lead. Alteração revertida.";
   }
@@ -566,7 +568,10 @@ function readTransitionError(err: unknown): string {
       missing_fields?: string[];
     };
     if (payload.code === "required_fields_missing" && payload.missing_fields) {
-      return `Campos obrigatórios faltando: ${payload.missing_fields.join(", ")}`;
+      return formatMissingRequirementsMessage(
+        payload.missing_fields,
+        customKeyToLabel
+      );
     }
   } catch {}
 

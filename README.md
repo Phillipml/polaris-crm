@@ -104,6 +104,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Operação atômica de transição de etapa com validação de campos obrigatórios
 - [x] Tela de administração de obrigatoriedades por etapa com preset sugerido
 - [x] Validação na criação rápida de lead conforme obrigatoriedades da etapa inicial (evita lead “preso” no board)
+- [x] Mensagens de campos obrigatórios no Kanban com rótulos legíveis (ex.: LinkedIn, Cargo) em vez de chaves técnicas
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM
 
