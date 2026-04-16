@@ -16,6 +16,7 @@ import {
   listLeadMessageSuggestions,
   type LeadMessageSuggestion,
 } from "@/lib/lead-message-suggestions/lead-message-suggestions-service";
+import { sendOutreachAndMoveLead } from "@/lib/outreach-events/outreach-events-service";
 import type { Json } from "@/lib/supabase/database.types";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
@@ -40,6 +41,7 @@ export default function LeadDetailsPage() {
   const [isLoadingLead, setIsLoadingLead] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingMessages, setIsGeneratingMessages] = useState(false);
+  const [isSendingMessageId, setIsSendingMessageId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
@@ -317,6 +319,31 @@ export default function LeadDetailsPage() {
       setToastMessage("Mensagem copiada.");
     } catch {
       setToastMessage("Falha ao copiar.");
+    }
+  }
+
+  async function handleSendMessage(item: LeadMessageSuggestion) {
+    if (!workspaceId || !lead) {
+      setSuggestionsError("Workspace ou lead não disponível para envio.");
+      return;
+    }
+
+    setIsSendingMessageId(item.id);
+    setSuggestionsError(null);
+    setSuccessMessage(null);
+    try {
+      const updatedLead = await sendOutreachAndMoveLead({
+        workspaceId,
+        leadId: lead.id,
+        campaignId: item.campaign_id,
+        message: item.content,
+      });
+      setLead(updatedLead);
+      setSuccessMessage("Mensagem enviada e lead movido para Tentando Contato.");
+    } catch (err) {
+      setSuggestionsError(readSendError(err));
+    } finally {
+      setIsSendingMessageId(null);
     }
   }
 
@@ -626,6 +653,14 @@ export default function LeadDetailsPage() {
                           >
                             Copiar
                           </Button>
+                          <Button
+                            type="button"
+                            className="px-3 py-1.5 text-xs"
+                            onClick={() => void handleSendMessage(item)}
+                            disabled={isSendingMessageId === item.id}
+                          >
+                            {isSendingMessageId === item.id ? "Enviando..." : "Enviar"}
+                          </Button>
                         </div>
                         <p className="whitespace-pre-wrap text-sm leading-relaxed text-text">
                           {item.content}
@@ -705,4 +740,26 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
   );
+}
+
+function readSendError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return "Não foi possível enviar a mensagem.";
+  }
+
+  try {
+    const payload = JSON.parse(err.message) as {
+      code?: string;
+      missing_fields?: string[];
+    };
+    if (payload.code === "required_fields_missing") {
+      return "Envio bloqueado por campos obrigatórios da etapa Tentando Contato. Preencha os campos pendentes no lead ou relaxe os requisitos dessa etapa no seed/demo.";
+    }
+  } catch {}
+
+  if (err.message.includes("required_fields_missing")) {
+    return "Envio bloqueado por campos obrigatórios da etapa Tentando Contato. Preencha os campos pendentes no lead ou relaxe os requisitos dessa etapa no seed/demo.";
+  }
+
+  return err.message || "Não foi possível enviar a mensagem.";
 }

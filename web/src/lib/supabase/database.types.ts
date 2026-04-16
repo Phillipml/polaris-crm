@@ -58,6 +58,7 @@ export type Database = {
           id: string;
           workspace_id: string;
           name: string;
+          slug: string;
           position: number;
           is_system: boolean;
           created_at: string;
@@ -67,6 +68,7 @@ export type Database = {
           id?: string;
           workspace_id: string;
           name: string;
+          slug: string;
           position: number;
           is_system?: boolean;
           created_at?: string;
@@ -76,6 +78,7 @@ export type Database = {
           id?: string;
           workspace_id?: string;
           name?: string;
+          slug?: string;
           position?: number;
           is_system?: boolean;
           created_at?: string;
@@ -247,6 +250,41 @@ export type Database = {
           variant_index?: number;
           content?: string;
           source?: "manual" | "auto_trigger";
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      outreach_events: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          lead_id: string;
+          campaign_id: string;
+          message: string;
+          sent_at: string;
+          user_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          lead_id: string;
+          campaign_id: string;
+          message: string;
+          sent_at?: string;
+          user_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          lead_id?: string;
+          campaign_id?: string;
+          message?: string;
+          sent_at?: string;
+          user_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
