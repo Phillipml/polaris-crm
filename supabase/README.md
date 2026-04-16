@@ -67,6 +67,23 @@ O corpo está em **português**, com logo em `{{ .SiteURL }}/logoFull.svg` (o `s
 
 No **projeto hospedado**, copie o HTML e o assunto para **Authentication → Email Templates → Reset password** (ou equivalente) no painel do Supabase, pois o `config.toml` não aplica templates automaticamente na nuvem.
 
+### Workspace onboarding (RPC e permissões)
+
+O fluxo de onboarding usa a função `public.create_workspace_with_owner(workspace_name text)` para criar workspace e membership `owner` na mesma operação.
+
+Caso apareça `403 Forbidden` ao chamar `rpc/create_workspace_with_owner`, confirme que as migrations abaixo foram aplicadas no local:
+
+- `20260416023000_workspaces_and_memberships_rls.sql`
+- `20260416031500_workspace_grants_authenticated.sql`
+- `20260416033000_fix_workspace_rpc_security_and_select_policy.sql`
+
+Com o stack local ativo:
+
+```bash
+npx supabase@latest migration list --local
+npx supabase@latest db push --local
+```
+
 ## Migrações
 
 ### Criar uma nova migração (arquivo SQL vazio para você editar)
