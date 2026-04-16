@@ -59,6 +59,10 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - **Movimentação visual de leads no pipeline:** era necessário manipular avanço de lead por etapa diretamente no board com feedback imediato. **Solução:** dashboard em formato Kanban com `@hello-pangea/dnd`, atualização otimista de `stage_id` no drop e rollback da UI quando a persistência falha.
 - **Usabilidade do board para operação diária:** faltavam estados de carregamento, vazio e criação rápida para tornar o Kanban realmente utilizável sem atalhos manuais. **Solução:** busca por nome no board, empty states com CTA para primeiro lead, skeletons de loading e habilitação do botão `Novo lead` com criação direta na etapa inicial.
 - **Escalabilidade visual do board em diferentes telas:** com mais leads por coluna, a página ficava excessivamente longa e difícil de operar em resoluções menores. **Solução:** formulário de criação ajustado para responsividade mobile/tablet/desktop e colunas do Kanban com scroll interno a partir de um limite de altura.
+- **Campos obrigatórios por etapa do funil:** era necessário preparar a base para regras de transição exigindo preenchimento de campos por estágio. **Solução:** schema `stage_required_fields` com `field_kind` (`standard` | `custom`), constraints e RLS herdando workspace via `funnel_stages`.
+- **Transição de etapa com garantia transacional:** o drag and drop do board precisava validar pré-condições no servidor para evitar movimentações inválidas entre colunas. **Solução:** RPC atômica `transition_lead_stage_atomic` que valida membership, requisitos da etapa destino, monta snapshot do lead e só persiste `stage_id` quando tudo é válido; em erro, retorna payload com campos faltantes e o Kanban reverte a UI.
+- **Governança de obrigatoriedade por etapa no próprio produto:** faltava uma interface para o admin configurar regras sem SQL manual. **Solução:** tela `/settings/stage-required-fields` para `owner/admin` gerenciar `stage_required_fields` por etapa e aplicar preset “Lead Mapeado” com um clique.
+- **Criação rápida de lead ignorando regras da etapa inicial:** o lead entrava no board sem dados exigidos pela RPC de transição, gerando erro só ao arrastar. **Solução:** carregar `stage_required_fields` da primeira etapa ao abrir o formulário, exibir inputs extras alinhados às regras e validar com o mesmo critério da RPC antes do `insert` em `leads`.
 
 ## Funcionalidades implementadas
 
@@ -96,6 +100,13 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Board Kanban no dashboard com drag and drop e persistência de `stage_id`
 - [x] Board com busca por nome, empty states, skeletons e criação rápida de lead
 - [x] Ajustes responsivos do formulário de criação e scroll interno por coluna no Kanban
+- [x] Schema `stage_required_fields` com enum e RLS via vínculo de etapa/workspace
+- [x] Operação atômica de transição de etapa com validação de campos obrigatórios
+- [x] Tela de administração de obrigatoriedades por etapa com preset sugerido
+- [x] Validação na criação rápida de lead conforme obrigatoriedades da etapa inicial (evita lead “preso” no board)
+- [x] Mensagens de campos obrigatórios no Kanban com rótulos legíveis (ex.: LinkedIn, Cargo) em vez de chaves técnicas
+- [x] Telas `/settings/lead-fields` e `/settings/stage-required-fields` com rótulos e textos para perfil não técnico
+- [x] Página `/leads/[id]`: campo custom booleano com layout responsivo, hierarquia clara e bloco compacto (`max-w-sm`) para menos deslocamento do mouse
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM
 

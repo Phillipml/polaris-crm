@@ -87,6 +87,32 @@ export type Database = {
           updated_at?: string;
         };
       };
+      stage_required_fields: {
+        Row: {
+          id: string;
+          stage_id: string;
+          field_key: string;
+          field_kind: "standard" | "custom";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          stage_id: string;
+          field_key: string;
+          field_kind: "standard" | "custom";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          stage_id?: string;
+          field_key?: string;
+          field_kind?: "standard" | "custom";
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       leads: {
         Row: {
           id: string;

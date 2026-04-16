@@ -314,7 +314,7 @@ export default function LeadDetailsPage() {
               </section>
 
               <section className="space-y-4">
-                <h2 className="text-base font-semibold">Custom fields</h2>
+                <h2 className="text-base font-semibold">Campos personalizados</h2>
                 {definitions.length === 0 ? (
                   <p className="text-sm text-(--text-muted)">
                     Nenhuma definição encontrada em Configurações → Campos do
@@ -322,29 +322,56 @@ export default function LeadDetailsPage() {
                   </p>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {definitions.map((definition) => (
-                      <div key={definition.id} className="space-y-1">
-                        <label className="text-sm font-medium">
-                          {definition.label}
-                        </label>
-                        {definition.type === "boolean" ? (
-                          <label className="inline-flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(
-                                customFieldsState[definition.key]
-                              )}
-                              onChange={(event) =>
-                                setCustomFieldsState((current) => ({
-                                  ...current,
-                                  [definition.key]: event.target.checked,
-                                }))
-                              }
-                            />
-                            Ativado
+                    {definitions.map((definition) => {
+                      const toggleId = `custom-field-${definition.id}`;
+                      const checked = Boolean(
+                        customFieldsState[definition.key]
+                      );
+                      if (definition.type === "boolean") {
+                        return (
+                          <div key={definition.id} className="space-y-2">
+                            <span className="block text-sm font-medium text-text">
+                              {definition.label}
+                            </span>
+                            <div className="w-full max-w-sm space-y-2 rounded-xl border border-(--border) bg-(--surface-hover)/25 px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <input
+                                  id={toggleId}
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(event) =>
+                                    setCustomFieldsState((current) => ({
+                                      ...current,
+                                      [definition.key]: event.target.checked,
+                                    }))
+                                  }
+                                  className="h-5 w-5 shrink-0 cursor-pointer rounded border border-(--border) bg-surface accent-(--primary) focus:outline-none focus:ring-2 focus:ring-(--ring)/35"
+                                />
+                                <label
+                                  htmlFor={toggleId}
+                                  className="cursor-pointer select-none text-sm font-medium leading-snug text-text"
+                                >
+                                  {checked ? "Sim, ativado" : "Não, desativado"}
+                                </label>
+                              </div>
+                              <p className="text-xs leading-snug text-(--text-muted)">
+                                Marque apenas se esta informação se aplica a este
+                                lead.
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={definition.id} className="space-y-1">
+                          <label
+                            className="text-sm font-medium"
+                            htmlFor={`field-${definition.id}`}
+                          >
+                            {definition.label}
                           </label>
-                        ) : (
                           <input
+                            id={`field-${definition.id}`}
                             type={
                               definition.type === "number" ? "number" : "text"
                             }
@@ -357,11 +384,11 @@ export default function LeadDetailsPage() {
                                 [definition.key]: event.target.value,
                               }))
                             }
-                            className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+                            className="w-full min-h-11 rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
                           />
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </section>
