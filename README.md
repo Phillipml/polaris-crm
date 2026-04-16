@@ -28,6 +28,8 @@ A tabela **`campaigns`** (já existente no MVP com `channel`, `description`, `is
 
 Chaves e escolha de modelo ficam **somente no servidor**: secrets **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** documentados em **`supabase/.env.example`** e aplicados via **`supabase secrets set`** (ou painel do projeto). O front Next **não** recebe `LLM_API_KEY`. A função **`supabase/functions/campaign-generation/`** (Deno 2, `deno.json` por função) foi implementada como endpoint `POST` com validação de JWT, checagem de membership por workspace, carga de campanha+lead+campos custom e chamada ao Google Gemini com saída JSON `{ "messages": string[] }` (2–3 mensagens). O destino HTTP do **Database Webhook** na mudança de etapa do lead é a Edge **`supabase/functions/lead-stage-webhook/`**: recebe o payload (`record` / `old_record`), extrai **`lead_id`** e o novo **`stage_id`**, lista campanhas **ativas** com **`trigger_stage_id`** igual ao novo estágio, gera via Gemini e persiste **`lead_message_suggestions`** com **`source = auto_trigger`**, com deduplicação por **rodada** usando também **`leads.updated_at`** (ver `supabase/README.md`).
 
+A tabela **`generation_jobs`** expõe **`pending` / `completed` / `failed`** por lead enquanto a Edge de webhook processa campanhas com geração automática, permitindo que **`/leads/[id]`** faça polling leve sem inferir estado só pelo histórico de sugestões; a mesma tela ainda mostra **última geração automática** derivada do **`created_at`** mais recente com **`source = auto_trigger`**.
+
 ### Como implementou o multi-tenancy
 
 Foi implementada a base de **multi-tenancy por workspace** no Supabase:
@@ -118,6 +120,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Telas de campanhas: lista, criação e edição em `/settings/campaigns` (contexto Markdown, prompt, toggle ativo; etapa gatilho só leitura/desabilitada até automação)
 - [x] `lead_message_suggestions` com `source` (`manual` | `auto_trigger`) e RLS validada pelo workspace do lead
 - [x] `/leads/[id]` com seletor de campanha ativa, botões Gerar/Regenerar, histórico de sugestões em cards e botão Copiar com toast
+- [x] `/leads/[id]`: badge “Gerando sugestões…” com polling enquanto existir `generation_jobs` pendente (até 90s), linha “Última geração automática em …” a partir de `lead_message_suggestions.source = auto_trigger`
 - [x] Botão Enviar em `/leads/[id]`: insert em `outreach_events` e transição para etapa `trying_contact`; em bloqueio por obrigatoriedades mostra orientação de preenchimento/ajuste no seed demo
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM (expandir fluxos de geração e automação por gatilho de etapa)

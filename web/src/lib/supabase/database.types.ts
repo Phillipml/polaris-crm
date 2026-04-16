@@ -53,6 +53,32 @@ export type Database = {
           updated_at?: string;
         };
       };
+      generation_jobs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          lead_id: string;
+          status: "pending" | "completed" | "failed";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          lead_id: string;
+          status: "pending" | "completed" | "failed";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          lead_id?: string;
+          status?: "pending" | "completed" | "failed";
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       funnel_stages: {
         Row: {
           id: string;

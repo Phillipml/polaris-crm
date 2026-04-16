@@ -216,6 +216,10 @@ Esta Edge é o **endpoint HTTP** configurado no **Database Webhook** (ou chamado
 
 - A Edge só gera automaticamente para campanhas **`is_active = true`** e **`trigger_stage_id` igual ao novo `stage_id`** do lead. Para testar no Kanban, defina `trigger_stage_id` da campanha para a etapa de destino (via SQL no demo ou UI quando existir).
 
+### Acompanhamento na UI (`generation_jobs`)
+
+- Tabela **`public.generation_jobs`**: ao iniciar o processamento com campanhas a gerar, a Edge insere **`status = pending`** (no máximo um pendente por `lead_id`); ao terminar com sucesso marca **`completed`**, em erro **`failed`**. Membros do workspace podem **`select`** para a tela **`/leads/[id]`** fazer polling e exibir o badge “Gerando sugestões…”.
+
 ### Secrets adicionais
 
 | Variável | Descrição |

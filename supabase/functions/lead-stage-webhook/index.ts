@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 type WebhookPayload = {
   type?: string;
@@ -69,6 +69,28 @@ type Database = {
           created_at: string;
         };
       };
+      generation_jobs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          lead_id: string;
+          status: "pending" | "completed" | "failed";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          lead_id: string;
+          status: "pending" | "completed" | "failed";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: "pending" | "completed" | "failed";
+          updated_at?: string;
+        };
+      };
     };
   };
 };
@@ -78,6 +100,16 @@ function jsonResponse(payload: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json; charset=utf-8" },
   });
+}
+
+async function setGenerationJobStatus(
+  admin: SupabaseClient<Database>,
+  jobId: string | null,
+  status: "completed" | "failed"
+) {
+  if (!jobId) return;
+  const iso = new Date().toISOString();
+  await admin.from("generation_jobs").update({ status, updated_at: iso }).eq("id", jobId);
 }
 
 function readString(value: unknown): string | null {
@@ -331,6 +363,18 @@ Deno.serve(async (request) => {
     value: customObj[def.key],
   }));
 
+  await admin.from("generation_jobs").delete().eq("lead_id", leadId).eq("status", "pending");
+  const jobInsert = await admin
+    .from("generation_jobs")
+    .insert({
+      workspace_id: workspaceId,
+      lead_id: leadId,
+      status: "pending",
+    })
+    .select("id")
+    .maybeSingle();
+  const jobId = jobInsert.error || !jobInsert.data?.id ? null : jobInsert.data.id;
+
   let generatedTotal = 0;
   const results: Array<{ campaign_id: string; inserted: number; deduped?: boolean }> = [];
 
@@ -350,6 +394,7 @@ Deno.serve(async (request) => {
         results.push({ campaign_id: campaign.id, inserted: 0, deduped: true });
         continue;
       }
+      await setGenerationJobStatus(admin, jobId, "failed");
       return jsonResponse(
         { error: "dedupe_insert_failed", detail: dedupeInsert.error.message },
         500
@@ -370,6 +415,7 @@ Deno.serve(async (request) => {
         .eq("new_stage_id", newStageId)
         .eq("leads_updated_at", lead.updated_at);
       const detail = err instanceof Error ? err.message : "llm_unknown_error";
+      await setGenerationJobStatus(admin, jobId, "failed");
       return jsonResponse({ error: "generation_failed", campaign_id: campaign.id, detail }, 502);
     }
 
@@ -384,6 +430,7 @@ Deno.serve(async (request) => {
       .maybeSingle();
 
     if (variantQuery.error) {
+      await setGenerationJobStatus(admin, jobId, "failed");
       return jsonResponse(
         { error: "variant_index_lookup_failed", detail: variantQuery.error.message },
         500
@@ -415,6 +462,7 @@ Deno.serve(async (request) => {
         .eq("old_stage_id", oldStageId)
         .eq("new_stage_id", newStageId)
         .eq("leads_updated_at", lead.updated_at);
+      await setGenerationJobStatus(admin, jobId, "failed");
       return jsonResponse(
         { error: "suggestions_insert_failed", detail: insertedQuery.error.message },
         500
@@ -426,5 +474,6 @@ Deno.serve(async (request) => {
     results.push({ campaign_id: campaign.id, inserted: count });
   }
 
+  await setGenerationJobStatus(admin, jobId, "completed");
   return jsonResponse({ processed: true, generated: generatedTotal, results }, 200);
 });
