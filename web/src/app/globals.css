@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* --- Tema: variáveis em html[data-theme] --- */
+html {
+  color-scheme: light dark;
+}
+
+html[data-theme="light"] {
+  --bg-base: #f3f6fb;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-hover: #e8eef7;
+  --border: rgba(2, 76, 171, 0.12);
+  --text: #0b1220;
+  --text-muted: #4a5568;
+  --primary: #0b9bfb;
+  --primary-deep: #024cab;
+  --primary-hover: #024cab;
+  --ring: #0b9bfb;
+}
+
+html[data-theme="dark"] {
+  --bg-base: #010914;
+  --surface: #0a1628;
+  --surface-elevated: #0d1c32;
+  --surface-hover: #12243d;
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --primary: #0b9bfb;
+  --primary-deep: #024cab;
+  --primary-hover: #39b0ff;
+  --ring: #0b9bfb;
+}
+
+@theme inline {
+  --font-sans: var(--font-ibm), ui-sans-serif, system-ui, sans-serif;
+  --color-bg-base: var(--bg-base);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+}
