@@ -36,6 +36,54 @@ npx supabase@latest status
 
 O cliente em `web/src/lib/supabase/browser-client.ts` lê apenas essas variáveis `NEXT_PUBLIC_*`.
 
+## E-mails de autenticação no ambiente local
+
+No ambiente local, os e-mails (confirmação de cadastro, recuperação de senha etc.) não são enviados para caixa real. Eles ficam no Inbucket, disponível em:
+
+- `http://127.0.0.1:54324`
+
+Neste projeto, as confirmações de e-mail estão habilitadas em `supabase/config.toml` (`[auth.email] enable_confirmations = true`), então após cadastro o usuário deve receber o e-mail no Inbucket.
+
+### Recuperação de senha não “chega” no Gmail
+
+1. Confirme que está usando o **Supabase local** (`NEXT_PUBLIC_SUPABASE_URL` apontando para `127.0.0.1` ou `localhost`) e que o stack está de pé (`npx supabase@latest start`).
+2. Abra o **Inbucket** (`http://127.0.0.1:54324`) e procure o e-mail de reset; ele não vai para o provedor externo.
+3. O link do e-mail (se o usuário clicar) redireciona para `redirectTo` configurado no app. Neste repositório o fluxo principal de recuperação é **`/forgot-password`** (código na mesma página); o link também aponta para essa URL. A rota `/auth/reset-password` só redireciona para `/forgot-password` mantendo o hash. Em `supabase/config.toml`, `additional_redirect_urls` inclui `forgot-password` e `auth/reset-password` em `localhost` e `127.0.0.1`.
+4. Após alterar `config.toml`, reinicie os containers: `npx supabase@latest stop` e `npx supabase@latest start`.
+
+Em **projeto hospedado** no Supabase, é preciso configurar **SMTP** (ou o provedor de e-mail padrão do painel) em **Authentication → Emails**; caso contrário, o reset pode não ser entregue como esperado.
+
+No painel remoto, em **Authentication → URL configuration**, inclua na lista de **Redirect URLs** os endereços da sua app com o caminho `/auth/reset-password` (por exemplo `https://seu-dominio.com/auth/reset-password` e `http://localhost:3000/auth/reset-password` em dev contra o projeto remoto).
+
+Em **Authentication → Providers → Email** (ou políticas de senha no painel, conforme a versão), alinhe requisitos de senha ao app: neste repositório o front valida **8+ caracteres** com **maiúscula, minúscula, número e caractere especial**, e o `config.toml` local usa `minimum_password_length = 8` e `password_requirements = "lower_upper_letters_digits_symbols"` para aproximar a mesma regra no Auth.
+
+### E-mail de recuperação só com código (sem link)
+
+No ambiente local, o template de recuperação está em `supabase/templates/recovery.html` e referenciado em `supabase/config.toml` em `[auth.email.template.recovery]`.
+
+O `content_path` é resolvido em relação à **raiz do repositório** (pasta de onde você roda `npx supabase start` / `stop`), não em relação ao arquivo `config.toml`. Use `./supabase/templates/recovery.html` para que o arquivo seja encontrado no Windows e em outros SO.
+
+O corpo está em **português**, com logo em `{{ .SiteURL }}/logoFull.svg` (o `site_url` do Auth deve ser a URL da app onde o Next serve `public/logoFull.svg`) e o código em `{{ .Token }}` (6 dígitos), sem `{{ .ConfirmationURL }}`, alinhado ao fluxo em `/forgot-password`.
+
+No **projeto hospedado**, copie o HTML e o assunto para **Authentication → Email Templates → Reset password** (ou equivalente) no painel do Supabase, pois o `config.toml` não aplica templates automaticamente na nuvem.
+
+### Workspace onboarding (RPC e permissões)
+
+O fluxo de onboarding usa a função `public.create_workspace_with_owner(workspace_name text)` para criar workspace e membership `owner` na mesma operação.
+
+Caso apareça `403 Forbidden` ao chamar `rpc/create_workspace_with_owner`, confirme que as migrations abaixo foram aplicadas no local:
+
+- `20260416023000_workspaces_and_memberships_rls.sql`
+- `20260416031500_workspace_grants_authenticated.sql`
+- `20260416033000_fix_workspace_rpc_security_and_select_policy.sql`
+
+Com o stack local ativo:
+
+```bash
+npx supabase@latest migration list --local
+npx supabase@latest db push --local
+```
+
 ## Migrações
 
 ### Criar uma nova migração (arquivo SQL vazio para você editar)
