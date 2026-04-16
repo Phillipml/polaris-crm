@@ -26,7 +26,7 @@ A tabela **`campaigns`** (já existente no MVP com `channel`, `description`, `is
 
 ### Como estruturou a integração com LLM
 
-Chaves e escolha de modelo ficam **somente no servidor**: secrets **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** documentados em **`supabase/.env.example`** e aplicados via **`supabase secrets set`** (ou painel do projeto). O front Next **não** recebe `LLM_API_KEY`. A função **`supabase/functions/campaign-generation/`** (Deno 2, `deno.json` por função) foi implementada como endpoint `POST` com validação de JWT, checagem de membership por workspace, carga de campanha+lead+campos custom e chamada ao Google Gemini com saída JSON `{ "messages": string[] }` (2–3 mensagens).
+Chaves e escolha de modelo ficam **somente no servidor**: secrets **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** documentados em **`supabase/.env.example`** e aplicados via **`supabase secrets set`** (ou painel do projeto). O front Next **não** recebe `LLM_API_KEY`. A função **`supabase/functions/campaign-generation/`** (Deno 2, `deno.json` por função) foi implementada como endpoint `POST` com validação de JWT, checagem de membership por workspace, carga de campanha+lead+campos custom e chamada ao Google Gemini com saída JSON `{ "messages": string[] }` (2–3 mensagens). A função **`supabase/functions/p82-lead-stage-webhook/`** recebe **Database Webhooks** (ou chamadas equivalentes do trigger `pg_net`) após **`UPDATE` em `leads` com mudança real de `stage_id`**, valida **`X-Webhook-Secret`** contra **`P82_WEBHOOK_SECRET`**, aplica deduplicação por transição e pode persistir sugestões com `source = auto_trigger` quando existir campanha ativa com `trigger_stage_id` igual ao novo estágio.
 
 ### Como implementou o multi-tenancy
 
@@ -113,6 +113,8 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Schema `campaigns` estendido (`context_markdown`, `generation_prompt`, `trigger_stage_id`, `created_by`) alinhado ao edital; RLS existente por workspace
 - [x] Pasta `supabase/functions` com `campaign-generation` (Deno + `deno.json`) e documentação de secrets `LLM_*`
 - [x] `campaign-generation` com JWT + membership + prompt estruturado e geração via Gemini retornando `{ "messages": string[] }`
+- [x] Edge `p82-lead-stage-webhook` com validação `X-Webhook-Secret`, dedupe por transição e geração automática alinhada a `campaigns.trigger_stage_id`
+- [x] Opcional: trigger `pg_net` após `UPDATE` em `leads` quando `stage_id` muda (desativado se secret/url vazios em `app_runtime_config`); documentação de Database Webhook no painel em `supabase/README.md`
 - [x] Telas de campanhas: lista, criação e edição em `/settings/campaigns` (contexto Markdown, prompt, toggle ativo; etapa gatilho só leitura/desabilitada até automação)
 - [x] `lead_message_suggestions` com `source` (`manual` | `auto_trigger`) e RLS validada pelo workspace do lead
 - [x] `/leads/[id]` com seletor de campanha ativa, botões Gerar/Regenerar, histórico de sugestões em cards e botão Copiar com toast
