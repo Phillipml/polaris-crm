@@ -1,6 +1,6 @@
 # PolarisCRM — Web (Next.js App Router)
 
-MVP front-end com TypeScript, Tailwind CSS v4, ESLint + Prettier e cliente Supabase no browser.
+MVP front-end com TypeScript, Tailwind CSS v4, ESLint + Prettier, cliente Supabase no browser e fluxo inicial de autenticação.
 
 ## Variáveis de ambiente
 
@@ -45,5 +45,19 @@ Guia completo: **`../supabase/README.md`**.
 
 - `app/` — rotas App Router, layout e estilos globais
 - `components/` — layout, providers, UI e utilitários de dev
-- `lib/supabase/` — factory do cliente browser (`getSupabaseBrowserClient`)
+- `components/auth/` — estrutura visual compartilhada para telas de autenticação
+- `lib/auth/` — mensagens de erro, política de senha (`password-policy.ts`) e validação compartilhada
+- `lib/supabase/` — factory do cliente browser (`getSupabaseBrowserClient`; chame só no browser, por exemplo em `useEffect` ou em handlers, não no render inicial de Client Components)
 - `lib/theme/` — constantes e script de bootstrap do tema
+
+## Rotas de autenticação
+
+- `/` — gate de autenticação: redireciona para `/dashboard` (logado) ou `/login` (não logado)
+- `/login` — login com e-mail e senha, incluindo mensagem para credenciais inválidas
+- `/register` — cadastro com e-mail/senha, incluindo tratamento para e-mail já usado
+- `/email-confirmation-pending` — página de orientação após cadastro que requer confirmação por e-mail
+- `/forgot-password` — recuperação em etapas na mesma página: e-mail → código de 6 dígitos do e-mail → nova senha; em API local os códigos aparecem no Inbucket (`http://127.0.0.1:54324`)
+- `/auth/reset-password` — redireciona para `/forgot-password` (compatível com links antigos; preserva `#` da URL)
+- `/onboarding/workspace` — destino de redirecionamento após login bem-sucedido
+- `/dashboard` — área inicial para sessão autenticada
+- `/account/password` — definir ou alterar senha (requer sessão; senão redireciona ao login)
