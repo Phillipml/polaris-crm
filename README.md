@@ -141,7 +141,15 @@ Mais detalhes: `web/README.md` · Supabase local: `supabase/README.md`.
 
 ### Secrets para Edge Functions (LLM)
 
-Variáveis **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** servem às **Supabase Edge Functions** (ex.: `campaign-generation`), **não** ao `web/.env.local`. Exemplo sem valores reais: **`supabase/.env.example`**. Copie para um arquivo local (por exemplo `supabase/.env`, ignorado pelo git) e use `npx supabase@latest secrets set --env-file supabase/.env` com o projeto linkado, ou configure no painel em **Edge Functions → Secrets**. Consulte a seção homônima em `supabase/README.md`.
+Variáveis **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** servem às **Supabase Edge Functions** (ex.: `campaign-generation`), **não** ao `web/.env.local`. Exemplo sem valores reais: **`supabase/.env.example`**. Copie para um arquivo local (por exemplo `supabase/.env`, ignorado pelo git) e use `npx supabase@latest secrets set --env-file supabase/.env` com o projeto linkado, ou configure no painel em **Edge Functions → Secrets**.
+
+Para produção, publique as chaves como secrets:
+
+```bash
+npx supabase@latest secrets set --env-file supabase/.env
+```
+
+Nunca commite chaves reais (`LLM_API_KEY`, tokens, credenciais). Consulte a seção homônima em `supabase/README.md`.
 
 ### Scripts úteis (`web/`)
 

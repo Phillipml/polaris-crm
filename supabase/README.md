@@ -167,6 +167,8 @@ npx supabase@latest secrets set --env-file supabase/.env
 
 (Use um arquivo local ignorado pelo git, por exemplo `supabase/.env`, copiado do `.env.example`.) No painel: **Project Settings → Edge Functions → Secrets**.
 
+Nunca commite chaves reais (`LLM_API_KEY`, tokens, credenciais). Mantenha apenas placeholders em arquivos versionados como `supabase/.env.example`.
+
 | Variável | Descrição |
 |----------|-----------|
 | `LLM_PROVIDER` | Provedor (`openai`, `anthropic`, `google`, …). |
