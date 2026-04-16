@@ -22,7 +22,7 @@
 
 O repositório inclui **`supabase/`** (CLI: `supabase init`) e agora possui migração inicial de multi-tenancy com as tabelas `workspaces` e `workspace_members` em **PostgreSQL via Supabase**. A modelagem usa PK composta em membership (`workspace_id`, `user_id`) para evitar duplicidade de vínculo por usuário no mesmo workspace, com `user_id` ligado a `auth.users.id` para manter coerência com autenticação nativa do Supabase.
 
-A tabela **`campaigns`** (já existente no MVP com `channel`, `description`, `is_active`) foi **estendida** para o edital de campanhas: **`context_markdown`** guarda o contexto da oferta em um único texto longo (Markdown aceito pelo produto); não foi normalizado em várias colunas (oferta, produto, período, etc.) neste passo para manter o MVP simples. **`generation_prompt`** armazena o prompt-base (persona, tom, formato; placeholders para campos do lead serão substituídos na Edge Function). **`trigger_stage_id`** referencia opcionalmente uma etapa do funil do mesmo `workspace_id` para futura automação ao mudar de etapa. **`created_by`** referencia `auth.users` quando o cliente preencher na criação. Colunas antigas (`channel`, `description`) permanecem por compatibilidade com **`lead_message_suggestions`**.
+A tabela **`campaigns`** (já existente no MVP com `channel`, `description`, `is_active`) foi **estendida** para o edital de campanhas: **`context_markdown`** guarda o contexto da oferta em um único texto longo (Markdown aceito pelo produto); não foi normalizado em várias colunas (oferta, produto, período, etc.) neste passo para manter o MVP simples. **`generation_prompt`** armazena o prompt-base (persona, tom, formato; placeholders para campos do lead serão substituídos na Edge Function). **`trigger_stage_id`** referencia opcionalmente uma etapa do funil do mesmo `workspace_id` para futura automação ao mudar de etapa. **`created_by`** referencia `auth.users` quando o cliente preencher na criação. Colunas antigas (`channel`, `description`) permanecem por compatibilidade com **`lead_message_suggestions`**. No front, **`/settings/campaigns`** lista campanhas do workspace atual (via `localStorage`), com formulários em **nova** e **`/[id]`** para textos longos, canal, ativo/inativo e select de etapa gatilho **desabilitado** (UX “em breve”) até a branch que ligar a automação.
 
 ### Como estruturou a integração com LLM
 
@@ -113,6 +113,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Schema `campaigns` estendido (`context_markdown`, `generation_prompt`, `trigger_stage_id`, `created_by`) alinhado ao edital; RLS existente por workspace
 - [x] Pasta `supabase/functions` com `campaign-generation` (Deno + `deno.json`) e documentação de secrets `LLM_*`
 - [x] `campaign-generation` com JWT + membership + prompt estruturado e geração via Gemini retornando `{ "messages": string[] }`
+- [x] Telas de campanhas: lista, criação e edição em `/settings/campaigns` (contexto Markdown, prompt, toggle ativo; etapa gatilho só leitura/desabilitada até automação)
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM (expandir fluxos de geração e automação por gatilho de etapa)
 
