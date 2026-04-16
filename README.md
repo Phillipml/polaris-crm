@@ -115,6 +115,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] `campaign-generation` com JWT + membership + prompt estruturado e geração via Gemini retornando `{ "messages": string[] }`
 - [x] Telas de campanhas: lista, criação e edição em `/settings/campaigns` (contexto Markdown, prompt, toggle ativo; etapa gatilho só leitura/desabilitada até automação)
 - [x] `lead_message_suggestions` com `source` (`manual` | `auto_trigger`) e RLS validada pelo workspace do lead
+- [x] `/leads/[id]` com seletor de campanha ativa, botões Gerar/Regenerar, histórico de sugestões em cards e botão Copiar com toast
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM (expandir fluxos de geração e automação por gatilho de etapa)
 
