@@ -132,6 +132,38 @@ npx supabase@latest migration up
 
 Consulte a [documentação oficial](https://supabase.com/docs/guides/cli) para flags e ambientes (staging/prod).
 
+## Edge Functions (Deno)
+
+Funções ficam em `supabase/functions/<nome>/` com `index.ts` e, por função, um `deno.json` (compiler strict, libs Deno), alinhado ao runtime em `config.toml` (`[edge_runtime]`, `deno_version`).
+
+### Função de exemplo: `campaign-generation`
+
+Stub HTTP que só valida presença de secrets; a montagem do prompt com campos padrão e custom do lead e a chamada ao provedor entram depois na mesma função ou em funções auxiliares.
+
+### Secrets `LLM_*` (servidor apenas)
+
+Não use essas chaves no app Next (`NEXT_PUBLIC_*`). Exemplo de nomes e formato está em **`supabase/.env.example`** (valores fictícios; não commitar chave real).
+
+Para ambiente linkado ou produção:
+
+```bash
+npx supabase@latest secrets set --env-file supabase/.env
+```
+
+(Use um arquivo local ignorado pelo git, por exemplo `supabase/.env`, copiado do `.env.example`.) No painel: **Project Settings → Edge Functions → Secrets**.
+
+| Variável | Descrição |
+|----------|-----------|
+| `LLM_PROVIDER` | Provedor (`openai`, `anthropic`, `google`, …). |
+| `LLM_MODEL` | Id do modelo (ex.: `gpt-4o-mini`, `claude-3-5-haiku-latest`, `gemini-2.0-flash`). |
+| `LLM_API_KEY` | Chave do provedor. |
+
+### Rodar localmente
+
+```bash
+npx supabase@latest functions serve campaign-generation
+```
+
 ## Parar o ambiente local
 
 ```bash

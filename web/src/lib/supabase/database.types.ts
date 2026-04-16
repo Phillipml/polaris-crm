@@ -9,6 +9,50 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      campaigns: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          name: string;
+          channel: string;
+          description: string | null;
+          is_active: boolean;
+          context_markdown: string | null;
+          generation_prompt: string;
+          trigger_stage_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          name: string;
+          channel?: string;
+          description?: string | null;
+          is_active?: boolean;
+          context_markdown?: string | null;
+          generation_prompt?: string;
+          trigger_stage_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          name?: string;
+          channel?: string;
+          description?: string | null;
+          is_active?: boolean;
+          context_markdown?: string | null;
+          generation_prompt?: string;
+          trigger_stage_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       funnel_stages: {
         Row: {
           id: string;
