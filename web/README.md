@@ -51,6 +51,7 @@ Guia completo: **`../supabase/README.md`**.
 - `hooks/` — hooks client-side de dados (ex.: `useLeads`, `useCreateLead`, `useUpdateLead`, `useLeadCustomFieldDefinitions`)
 - `lib/auth/` — mensagens de erro, política de senha (`password-policy.ts`) e validação compartilhada
 - `lib/leads/` — serviço de leads (`list`, `create`, `update`) com filtro por `workspace_id` e `stage_id`
+- `lib/leads/` — serviço de leads (`list`, `get by id`, `create`, `update`)
 - `lib/lead-custom-fields/` — CRUD de definições em `lead_custom_field_definitions`
 - `lib/supabase/` — factory do cliente browser (`getSupabaseBrowserClient`; chame só no browser, por exemplo em `useEffect` ou em handlers, não no render inicial de Client Components)
 - `lib/theme/` — constantes e script de bootstrap do tema
@@ -76,6 +77,7 @@ Variáveis esperadas:
 - `/auth/reset-password` — redireciona para `/forgot-password` (compatível com links antigos; preserva `#` da URL)
 - `/onboarding/workspace` — onboarding de workspace: lista workspaces existentes, cria novo via RPC e permite selecionar para continuar
 - `/dashboard` — área inicial para sessão autenticada
+- `/leads/[id]` — detalhe/edição do lead (dados padrão, custom fields, responsável e observações)
 - `/account/password` — definir ou alterar senha (requer sessão; senão redireciona ao login)
 - `/settings/lead-fields` — configuração de campos customizados do lead (`key`, `label`, `type`) por workspace
 

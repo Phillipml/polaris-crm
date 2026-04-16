@@ -67,6 +67,25 @@ export async function createLead(input: CreateLeadInput): Promise<Lead> {
   return data;
 }
 
+export async function getLeadById(params: {
+  workspaceId: string;
+  leadId: string;
+}): Promise<Lead> {
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("workspace_id", params.workspaceId)
+    .eq("id", params.leadId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 export async function updateLead(input: UpdateLeadInput): Promise<Lead> {
   const { id, workspace_id, ...patch } = input;
   const supabase = getSupabaseBrowserClient();

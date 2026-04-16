@@ -55,6 +55,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - **Navegação e UX do onboarding de workspace:** era necessário alinhar comportamento de logos e pós-criação. **Solução:** logos clicáveis redirecionam para `/`, criação de workspace não redireciona automaticamente e atualiza a lista local com o item recém-criado; a continuidade acontece ao selecionar um workspace.
 - **Etapas padrão do funil para novos workspaces:** era necessário que cada workspace novo já começasse com um pipeline utilizável sem intervenção manual. **Solução:** migration com função + trigger em `workspaces` para criar automaticamente `Base`, `Lead Mapeado`, `Tentando Contato`, `Conexão Iniciada`, `Desqualificado`, `Qualificado` e `Reunião Agendada`, com `position` sequencial e backfill para workspaces já existentes.
 - **Gestão de campos customizados do lead por workspace:** era necessário permitir configuração dinâmica de dados do lead sem alterar schema a cada novo campo de negócio. **Solução:** tabela `lead_custom_field_definitions` com unicidade de `key` por workspace e RLS, além de UI em `/settings/lead-fields` para criar, editar e remover (`key`, `label`, `type`).
+- **Edição detalhada de lead com campos dinâmicos:** era necessário centralizar edição de dados padrão e customizados em uma única tela com feedback de persistência. **Solução:** rota `/leads/[id]` com seções de dados padrão, custom fields (a partir de `lead_custom_field_definitions`), responsável (membros do workspace) e observações, salvando em `leads` com mensagens de sucesso/erro.
 
 ## Funcionalidades implementadas
 
@@ -88,6 +89,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Seed automático de etapas padrão do funil para cada workspace
 - [x] Logos do header/onboarding redirecionando para `/`
 - [x] Configuração de campos customizados do lead por workspace (`/settings/lead-fields`)
+- [x] Página de detalhe/edição de lead com seções e salvamento (`/leads/[id]`)
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM
 
