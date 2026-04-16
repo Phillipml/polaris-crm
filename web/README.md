@@ -79,6 +79,7 @@ Variáveis esperadas:
 - `/leads/[id]` — detalhe/edição do lead (dados padrão, custom fields, responsável e observações)
 - `/account/password` — definir ou alterar senha (requer sessão; senão redireciona ao login)
 - `/settings/lead-fields` — configuração de campos customizados do lead (`key`, `label`, `type`) por workspace
+- `/settings/stage-required-fields` — configuração de obrigatoriedades por etapa (`field_kind`, `field_key`) para admin/owner, com preset “Aplicar exemplo Lead Mapeado”
 
 ## Observações de UX no onboarding
 

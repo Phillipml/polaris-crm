@@ -12,13 +12,40 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
+import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
 import { useCreateLead, useLeads } from "@/hooks/use-leads";
+import { useStageRequiredFields } from "@/hooks/use-stage-required-fields";
 import {
   transitionLeadStageAtomic,
   type Lead,
 } from "@/lib/leads/leads-service";
+import type { Json } from "@/lib/supabase/database.types";
+import {
+  formatMissingRequirementsMessage,
+  listMissingStageRequirements,
+  type LeadSnapshotForRequirements,
+} from "@/lib/stage-required-fields/validate-lead-for-stage-requirements";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
+
+const STANDARD_FIELD_LABELS: Record<string, string> = {
+  full_name: "Nome",
+  company_name: "Empresa",
+  email: "E-mail",
+  phone: "Telefone",
+  job_title: "Cargo",
+  linkedin_url: "LinkedIn",
+  source: "Origem",
+  status: "Status",
+  notes: "Notas",
+  owner_user_id: "Responsável (UUID do usuário)",
+};
+
+const PRIMARY_CREATE_STANDARD = new Set([
+  "full_name",
+  "company_name",
+  "email",
+]);
 
 export default function DashboardPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -29,6 +56,12 @@ export default function DashboardPage() {
   const [newLeadName, setNewLeadName] = useState("");
   const [newLeadCompany, setNewLeadCompany] = useState("");
   const [newLeadEmail, setNewLeadEmail] = useState("");
+  const [additionalStandard, setAdditionalStandard] = useState<
+    Record<string, string>
+  >({});
+  const [customRequirementValues, setCustomRequirementValues] = useState<
+    Record<string, string>
+  >({});
   const [createFeedback, setCreateFeedback] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -36,6 +69,7 @@ export default function DashboardPage() {
     workspaceId: workspaceId ?? undefined,
     enabled: Boolean(workspaceId),
   });
+  const baseStage = stages[0] ?? null;
   const {
     leads,
     isLoading: isLoadingLeads,
@@ -46,6 +80,41 @@ export default function DashboardPage() {
     enabled: Boolean(workspaceId),
   });
   const { createLead, isLoading: isCreatingLead } = useCreateLead();
+  const {
+    requirements: baseStageRequirements,
+    isLoading: isLoadingBaseRequirements,
+    error: baseStageRequirementsError,
+  } = useStageRequiredFields({
+    stageId: baseStage?.id,
+    enabled: Boolean(workspaceId && baseStage && showCreateForm),
+  });
+  const { definitions: leadFieldDefinitions } = useLeadCustomFieldDefinitions({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId && showCreateForm),
+  });
+
+  const extraStandardRequirements = useMemo(
+    () =>
+      baseStageRequirements.filter(
+        (row) =>
+          row.field_kind === "standard" &&
+          !PRIMARY_CREATE_STANDARD.has(row.field_key)
+      ),
+    [baseStageRequirements]
+  );
+
+  const customRequirements = useMemo(
+    () => baseStageRequirements.filter((row) => row.field_kind === "custom"),
+    [baseStageRequirements]
+  );
+
+  useEffect(() => {
+    if (!showCreateForm) {
+      return;
+    }
+    setAdditionalStandard({});
+    setCustomRequirementValues({});
+  }, [showCreateForm]);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -84,7 +153,6 @@ export default function DashboardPage() {
 
   const hasAnyLead = boardLeads.length > 0;
   const hasAnyVisibleLead = visibleLeads.length > 0;
-  const baseStage = stages[0] ?? null;
 
   async function handleDragEnd(result: DropResult) {
     if (!workspaceId) return;
@@ -137,16 +205,59 @@ export default function DashboardPage() {
       return;
     }
 
+    if (isLoadingBaseRequirements) {
+      setCreateError("Aguarde o carregamento das regras da etapa inicial.");
+      return;
+    }
+
+    const custom_fields: Record<string, unknown> = {};
+    for (const row of customRequirements) {
+      custom_fields[row.field_key] = customRequirementValues[row.field_key] ?? "";
+    }
+
+    const ownerRaw = (additionalStandard.owner_user_id ?? "").trim();
+    const snapshot: LeadSnapshotForRequirements = {
+      full_name: trimmedName || null,
+      company_name: newLeadCompany.trim() || null,
+      email: newLeadEmail.trim() || null,
+      phone: (additionalStandard.phone ?? "").trim() || null,
+      job_title: (additionalStandard.job_title ?? "").trim() || null,
+      linkedin_url: (additionalStandard.linkedin_url ?? "").trim() || null,
+      source: (additionalStandard.source ?? "").trim() || null,
+      status: (additionalStandard.status ?? "").trim() || null,
+      notes: (additionalStandard.notes ?? "").trim() || null,
+      owner_user_id: ownerRaw || null,
+      custom_fields,
+    };
+
+    const missing = listMissingStageRequirements(
+      baseStageRequirements,
+      snapshot
+    );
+    if (missing.length > 0) {
+      setCreateError(formatMissingRequirementsMessage(missing));
+      return;
+    }
+
     setCreateError(null);
     setCreateFeedback(null);
 
     try {
+      const customPayload = snapshot.custom_fields as Json;
       const created = await createLead({
         workspace_id: workspaceId,
         stage_id: baseStage.id,
-        full_name: trimmedName,
-        company_name: newLeadCompany.trim() || null,
-        email: newLeadEmail.trim() || null,
+        full_name: snapshot.full_name,
+        company_name: snapshot.company_name,
+        email: snapshot.email,
+        phone: snapshot.phone,
+        job_title: snapshot.job_title,
+        linkedin_url: snapshot.linkedin_url,
+        source: snapshot.source,
+        status: snapshot.status,
+        notes: snapshot.notes,
+        owner_user_id: snapshot.owner_user_id,
+        custom_fields: customPayload,
       });
       setLeads((current) => [created, ...current]);
       setCreateFeedback("Lead criado com sucesso.");
@@ -174,6 +285,12 @@ export default function DashboardPage() {
               Campos do lead
             </Link>
             <Link
+              href="/settings/stage-required-fields"
+              className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
+            >
+              Regras por etapa
+            </Link>
+            <Link
               href="/onboarding/workspace"
               className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
             >
@@ -197,6 +314,22 @@ export default function DashboardPage() {
             />
             {showCreateForm ? (
               <div className="grid gap-2 rounded-lg border border-(--border) bg-surface p-3 md:grid-cols-2 xl:grid-cols-4">
+                {baseStage ? (
+                  <p className="text-xs text-(--text-muted) md:col-span-2 xl:col-span-4">
+                    Etapa inicial: {baseStage.name}. Campos extras abaixo seguem
+                    as obrigatoriedades configuradas para esta etapa.
+                  </p>
+                ) : null}
+                {isLoadingBaseRequirements ? (
+                  <p className="text-xs text-(--text-muted) md:col-span-2 xl:col-span-4">
+                    Carregando regras da etapa...
+                  </p>
+                ) : null}
+                {baseStageRequirementsError ? (
+                  <p className="text-xs font-medium text-red-500 md:col-span-2 xl:col-span-4">
+                    {baseStageRequirementsError}
+                  </p>
+                ) : null}
                 <input
                   value={newLeadName}
                   onChange={(event) => setNewLeadName(event.target.value)}
@@ -215,11 +348,52 @@ export default function DashboardPage() {
                   placeholder="E-mail"
                   className="rounded-lg border border-(--border) bg-(--surface-hover)/40 px-3 py-2 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
                 />
+                {extraStandardRequirements.map((row) => (
+                  <input
+                    key={row.id}
+                    value={additionalStandard[row.field_key] ?? ""}
+                    onChange={(event) =>
+                      setAdditionalStandard((prev) => ({
+                        ...prev,
+                        [row.field_key]: event.target.value,
+                      }))
+                    }
+                    placeholder={
+                      STANDARD_FIELD_LABELS[row.field_key] ?? row.field_key
+                    }
+                    className="rounded-lg border border-(--border) bg-(--surface-hover)/40 px-3 py-2 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25 md:col-span-1 xl:col-span-2"
+                  />
+                ))}
+                {customRequirements.map((row) => {
+                  const definition = leadFieldDefinitions.find(
+                    (item) => item.key === row.field_key
+                  );
+                  const placeholder =
+                    definition?.label ?? `Campo: ${row.field_key}`;
+                  return (
+                    <input
+                      key={row.id}
+                      value={customRequirementValues[row.field_key] ?? ""}
+                      onChange={(event) =>
+                        setCustomRequirementValues((prev) => ({
+                          ...prev,
+                          [row.field_key]: event.target.value,
+                        }))
+                      }
+                      placeholder={placeholder}
+                      className="rounded-lg border border-(--border) bg-(--surface-hover)/40 px-3 py-2 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25 md:col-span-1 xl:col-span-2"
+                    />
+                  );
+                })}
                 <div className="flex flex-col gap-2 md:col-span-2 md:flex-row xl:col-span-4">
                   <Button
                     type="button"
                     onClick={handleCreateLead}
-                    disabled={isCreatingLead}
+                    disabled={
+                      isCreatingLead ||
+                      isLoadingBaseRequirements ||
+                      Boolean(baseStageRequirementsError)
+                    }
                     className="w-full md:w-auto"
                   >
                     {isCreatingLead ? "Criando..." : "Salvar novo lead"}
