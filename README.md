@@ -59,6 +59,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - **Movimentação visual de leads no pipeline:** era necessário manipular avanço de lead por etapa diretamente no board com feedback imediato. **Solução:** dashboard em formato Kanban com `@hello-pangea/dnd`, atualização otimista de `stage_id` no drop e rollback da UI quando a persistência falha.
 - **Usabilidade do board para operação diária:** faltavam estados de carregamento, vazio e criação rápida para tornar o Kanban realmente utilizável sem atalhos manuais. **Solução:** busca por nome no board, empty states com CTA para primeiro lead, skeletons de loading e habilitação do botão `Novo lead` com criação direta na etapa inicial.
 - **Escalabilidade visual do board em diferentes telas:** com mais leads por coluna, a página ficava excessivamente longa e difícil de operar em resoluções menores. **Solução:** formulário de criação ajustado para responsividade mobile/tablet/desktop e colunas do Kanban com scroll interno a partir de um limite de altura.
+- **Campos obrigatórios por etapa do funil:** era necessário preparar a base para regras de transição exigindo preenchimento de campos por estágio. **Solução:** schema `stage_required_fields` com `field_kind` (`standard` | `custom`), constraints e RLS herdando workspace via `funnel_stages`.
 
 ## Funcionalidades implementadas
 
@@ -96,6 +97,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Board Kanban no dashboard com drag and drop e persistência de `stage_id`
 - [x] Board com busca por nome, empty states, skeletons e criação rápida de lead
 - [x] Ajustes responsivos do formulário de criação e scroll interno por coluna no Kanban
+- [x] Schema `stage_required_fields` com enum e RLS via vínculo de etapa/workspace
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM
 
