@@ -58,6 +58,11 @@ Guia completo: **`../supabase/README.md`**.
 - `/email-confirmation-pending` — página de orientação após cadastro que requer confirmação por e-mail
 - `/forgot-password` — recuperação em etapas na mesma página: e-mail → código de 6 dígitos do e-mail → nova senha; em API local os códigos aparecem no Inbucket (`http://127.0.0.1:54324`)
 - `/auth/reset-password` — redireciona para `/forgot-password` (compatível com links antigos; preserva `#` da URL)
-- `/onboarding/workspace` — destino de redirecionamento após login bem-sucedido
+- `/onboarding/workspace` — onboarding de workspace: lista workspaces existentes, cria novo via RPC e permite selecionar para continuar
 - `/dashboard` — área inicial para sessão autenticada
 - `/account/password` — definir ou alterar senha (requer sessão; senão redireciona ao login)
+
+## Observações de UX no onboarding
+
+- Clicar nas logos (header e onboarding) redireciona para `/`.
+- Após criar workspace, não há redirect automático: a lista é atualizada localmente e o usuário seleciona o workspace para continuar.

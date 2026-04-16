@@ -47,5 +47,23 @@ export function getAuthErrorMessage(errorMessage?: string): string {
     return "Informe um e-mail válido.";
   }
 
+  if (
+    normalized.includes("relation") &&
+    normalized.includes("does not exist") &&
+    (normalized.includes("workspace_members") || normalized.includes("workspaces"))
+  ) {
+    return "Estrutura de workspace não encontrada no banco local. Rode as migrações do Supabase e tente novamente.";
+  }
+
+  if (
+    normalized.includes("not authenticated") ||
+    normalized.includes("jwt") ||
+    normalized.includes("permission denied") ||
+    normalized.includes("forbidden") ||
+    normalized.includes("row-level security")
+  ) {
+    return "Sua sessão não tem permissão para esta ação. Entre novamente e tente criar o workspace.";
+  }
+
   return "Não foi possível concluir a operação. Tente novamente.";
 }
