@@ -23,8 +23,8 @@ grant all on table public.lead_stage_webhook_campaign_dedupe to service_role;
 
 insert into public.app_runtime_config (key, value)
 values
-  ('p82_lead_stage_webhook_url', 'http://kong:8000/functions/v1/p82-lead-stage-webhook'),
-  ('p82_lead_stage_webhook_secret', '')
+  ('lead_stage_webhook_url', 'http://kong:8000/functions/v1/lead-stage-webhook'),
+  ('lead_stage_webhook_secret', '')
 on conflict (key) do nothing;
 
 create or replace function public.leads_stage_change_webhook_enqueue()
@@ -47,11 +47,11 @@ begin
 
   select value into hook_url
   from public.app_runtime_config
-  where key = 'p82_lead_stage_webhook_url';
+  where key = 'lead_stage_webhook_url';
 
   select value into hook_secret
   from public.app_runtime_config
-  where key = 'p82_lead_stage_webhook_secret';
+  where key = 'lead_stage_webhook_secret';
 
   if coalesce(hook_url, '') = '' or coalesce(hook_secret, '') = '' then
     return new;

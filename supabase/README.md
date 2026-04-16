@@ -181,7 +181,9 @@ Nunca commite chaves reais (`LLM_API_KEY`, tokens, credenciais). Mantenha apenas
 npx supabase@latest functions serve campaign-generation
 ```
 
-## P8.2 — Webhook de mudança de etapa (`p82-lead-stage-webhook`)
+## Destino HTTP do Database Webhook — `lead-stage-webhook`
+
+Esta Edge é o **endpoint HTTP** configurado no **Database Webhook** (ou chamado pelo trigger `pg_net` opcional). Ela recebe o payload, extrai **`record.id` → `lead_id`** e **`record.stage_id` → `new_stage_id`** (e `old_record.stage_id` como estágio anterior), busca campanhas **`is_active = true`** com **`trigger_stage_id = new_stage_id`** e, para cada campanha, executa geração (Gemini) e persiste **`lead_message_suggestions`** com **`source = auto_trigger`**.
 
 ### Regra exata de disparo
 
@@ -191,22 +193,24 @@ npx supabase@latest functions serve campaign-generation
 
 ### Duas formas de entrega (use só uma em produção para evitar duplicidade)
 
-1. **Database Webhook (painel Supabase)** em `public.leads` → evento **UPDATE** → `POST` na Edge `p82-lead-stage-webhook` com header **`X-Webhook-Secret`** igual ao secret configurado na Edge (`P82_WEBHOOK_SECRET`). Filtre no painel, quando disponível, para payloads em que `record.stage_id` difere de `old_record.stage_id`.
-2. **Trigger opcional com `pg_net` (migration `20260417140000`)** que chama a mesma URL quando `public.app_runtime_config` tiver **`p82_lead_stage_webhook_url`** e **`p82_lead_stage_webhook_secret`** preenchidos. Com secret vazio, o trigger **não** envia HTTP (no-op).
+1. **Database Webhook (painel Supabase)** em `public.leads` → evento **UPDATE** → `POST` na Edge `lead-stage-webhook` com header **`X-Webhook-Secret`** igual ao secret configurado na Edge (`LEAD_STAGE_WEBHOOK_SECRET`). Filtre no painel, quando disponível, para payloads em que `record.stage_id` difere de `old_record.stage_id`.
+2. **Trigger opcional com `pg_net` (migration `20260417140000`, chaves renomeadas na `20260417160000`)** que chama a mesma URL quando `public.app_runtime_config` tiver **`lead_stage_webhook_url`** e **`lead_stage_webhook_secret`** preenchidos. Com secret vazio, o trigger **não** envia HTTP (no-op).
 
 ### Segurança na Edge
 
-- A função compara **`X-Webhook-Secret`** com a variável de ambiente **`P82_WEBHOOK_SECRET`** (via `supabase secrets set`). Sem match → **401** (header ausente) ou **403** (valor inválido). Não hardcode segredo no repositório.
+- A função compara **`X-Webhook-Secret`** com a variável de ambiente **`LEAD_STAGE_WEBHOOK_SECRET`** (via `supabase secrets set`). Sem match → **401** (header ausente) ou **403** (valor inválido). Não hardcode segredo no repositório.
 
-### Idempotência
+### Idempotência (estratégia de “rodada”)
 
-- Tabela `public.lead_stage_webhook_campaign_dedupe` com chave `(lead_id, campaign_id, old_stage_id, new_stage_id)` evita duas gerações automáticas idênticas para o mesmo par lead+campanha na mesma transição de estágio (reentrega do webhook ou trigger + webhook ao mesmo tempo).
-- Se a geração LLM ou o insert em `lead_message_suggestions` falhar após marcar dedupe, a Edge remove a linha de dedupe daquela campanha para permitir retry.
+- Tabela `public.lead_stage_webhook_campaign_dedupe` com chave primária **`(lead_id, campaign_id, old_stage_id, new_stage_id, leads_updated_at)`**, onde **`leads_updated_at` é o `updated_at` do lead após o `UPDATE` commitado** (mesma “rodada” = mesma transição no banco). Isso evita duas gerações idênticas para o mesmo **lead + campanha + transição + instante de commit** quando o provedor reentrega o webhook ou há trigger + webhook em paralelo.
+- Se o lead voltar a cruzar a mesma aresta de funil mais tarde, **`leads.updated_at` muda**, portanto **uma nova rodada** pode gerar de novo (comportamento desejado frente a um PK só com estágios).
+- A unicidade **`(lead_id, campaign_id, variant_index)`** em `lead_message_suggestions` continua garantindo que não haja colisão de variantes dentro da mesma campanha.
+- Se a geração LLM ou o insert em `lead_message_suggestions` falhar após marcar dedupe, a Edge remove a linha de dedupe daquela campanha **e daquele `leads_updated_at`** para permitir retry.
 
 ### Semântica de commit e observabilidade
 
 - O **`UPDATE` do lead já foi commitado** antes do webhook/HTTP retornar. Se a Edge falhar, o estágio **permanece alterado**; o retry depende do provedor (Database Webhook no painel costuma ter tentativas; `pg_net` expõe fila/respostas em `net._http_response` / `net.http_request_queue` conforme versão).
-- Logs: **Supabase Dashboard → Edge Functions → Logs** para `p82-lead-stage-webhook`; entregas do Database Webhook no painel de Database Webhooks; no local, terminal do `functions serve`.
+- Logs: **Supabase Dashboard → Edge Functions → Logs** para `lead-stage-webhook`; entregas do Database Webhook no painel de Database Webhooks; no local, terminal do `functions serve`.
 
 ### Matching de campanhas
 
@@ -216,12 +220,12 @@ npx supabase@latest functions serve campaign-generation
 
 | Variável | Descrição |
 |----------|-----------|
-| `P82_WEBHOOK_SECRET` | Segredo compartilhado entre Database Webhook (header) e Edge. |
+| `LEAD_STAGE_WEBHOOK_SECRET` | Segredo compartilhado entre Database Webhook (header) e Edge. |
 
-### Rodar a Edge P8.2 localmente
+### Rodar a Edge localmente
 
 ```bash
-npx supabase@latest functions serve p82-lead-stage-webhook
+npx supabase@latest functions serve lead-stage-webhook
 ```
 
 ## Parar o ambiente local

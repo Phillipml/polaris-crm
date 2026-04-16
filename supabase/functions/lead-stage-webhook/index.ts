@@ -65,6 +65,7 @@ type Database = {
           campaign_id: string;
           old_stage_id: string;
           new_stage_id: string;
+          leads_updated_at: string;
           created_at: string;
         };
       };
@@ -206,7 +207,7 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "method_not_allowed" }, 405);
   }
 
-  const expectedSecret = Deno.env.get("P82_WEBHOOK_SECRET");
+  const expectedSecret = Deno.env.get("LEAD_STAGE_WEBHOOK_SECRET");
   const headerSecret =
     request.headers.get("x-webhook-secret") ??
     request.headers.get("X-Webhook-Secret");
@@ -339,6 +340,7 @@ Deno.serve(async (request) => {
       campaign_id: campaign.id,
       old_stage_id: oldStageId,
       new_stage_id: newStageId,
+      leads_updated_at: lead.updated_at,
     });
 
     if (dedupeInsert.error) {
@@ -365,7 +367,8 @@ Deno.serve(async (request) => {
         .eq("lead_id", leadId)
         .eq("campaign_id", campaign.id)
         .eq("old_stage_id", oldStageId)
-        .eq("new_stage_id", newStageId);
+        .eq("new_stage_id", newStageId)
+        .eq("leads_updated_at", lead.updated_at);
       const detail = err instanceof Error ? err.message : "llm_unknown_error";
       return jsonResponse({ error: "generation_failed", campaign_id: campaign.id, detail }, 502);
     }
@@ -410,7 +413,8 @@ Deno.serve(async (request) => {
         .eq("lead_id", leadId)
         .eq("campaign_id", campaign.id)
         .eq("old_stage_id", oldStageId)
-        .eq("new_stage_id", newStageId);
+        .eq("new_stage_id", newStageId)
+        .eq("leads_updated_at", lead.updated_at);
       return jsonResponse(
         { error: "suggestions_insert_failed", detail: insertedQuery.error.message },
         500
