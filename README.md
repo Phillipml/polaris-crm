@@ -54,6 +54,11 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - **Erros de permissão na RPC de criação de workspace:** durante o onboarding ocorreram respostas `403` no endpoint `rpc/create_workspace_with_owner`. **Solução:** migrations adicionais com grants para role `authenticated`, ajuste da função para `security definer`, `grant execute` explícito e policy de leitura de `workspaces` por membership.
 - **Navegação e UX do onboarding de workspace:** era necessário alinhar comportamento de logos e pós-criação. **Solução:** logos clicáveis redirecionam para `/`, criação de workspace não redireciona automaticamente e atualiza a lista local com o item recém-criado; a continuidade acontece ao selecionar um workspace.
 - **Etapas padrão do funil para novos workspaces:** era necessário que cada workspace novo já começasse com um pipeline utilizável sem intervenção manual. **Solução:** migration com função + trigger em `workspaces` para criar automaticamente `Base`, `Lead Mapeado`, `Tentando Contato`, `Conexão Iniciada`, `Desqualificado`, `Qualificado` e `Reunião Agendada`, com `position` sequencial e backfill para workspaces já existentes.
+- **Gestão de campos customizados do lead por workspace:** era necessário permitir configuração dinâmica de dados do lead sem alterar schema a cada novo campo de negócio. **Solução:** tabela `lead_custom_field_definitions` com unicidade de `key` por workspace e RLS, além de UI em `/settings/lead-fields` para criar, editar e remover (`key`, `label`, `type`).
+- **Edição detalhada de lead com campos dinâmicos:** era necessário centralizar edição de dados padrão e customizados em uma única tela com feedback de persistência. **Solução:** rota `/leads/[id]` com seções de dados padrão, custom fields (a partir de `lead_custom_field_definitions`), responsável (membros do workspace) e observações, salvando em `leads` com mensagens de sucesso/erro.
+- **Movimentação visual de leads no pipeline:** era necessário manipular avanço de lead por etapa diretamente no board com feedback imediato. **Solução:** dashboard em formato Kanban com `@hello-pangea/dnd`, atualização otimista de `stage_id` no drop e rollback da UI quando a persistência falha.
+- **Usabilidade do board para operação diária:** faltavam estados de carregamento, vazio e criação rápida para tornar o Kanban realmente utilizável sem atalhos manuais. **Solução:** busca por nome no board, empty states com CTA para primeiro lead, skeletons de loading e habilitação do botão `Novo lead` com criação direta na etapa inicial.
+- **Escalabilidade visual do board em diferentes telas:** com mais leads por coluna, a página ficava excessivamente longa e difícil de operar em resoluções menores. **Solução:** formulário de criação ajustado para responsividade mobile/tablet/desktop e colunas do Kanban com scroll interno a partir de um limite de altura.
 
 ## Funcionalidades implementadas
 
@@ -86,6 +91,11 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Criação de workspace sem redirect automático, com atualização imediata da lista
 - [x] Seed automático de etapas padrão do funil para cada workspace
 - [x] Logos do header/onboarding redirecionando para `/`
+- [x] Configuração de campos customizados do lead por workspace (`/settings/lead-fields`)
+- [x] Página de detalhe/edição de lead com seções e salvamento (`/leads/[id]`)
+- [x] Board Kanban no dashboard com drag and drop e persistência de `stage_id`
+- [x] Board com busca por nome, empty states, skeletons e criação rápida de lead
+- [x] Ajustes responsivos do formulário de criação e scroll interno por coluna no Kanban
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM
 

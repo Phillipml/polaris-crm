@@ -12,6 +12,7 @@
     "test:rls": "node --test tests/rls/*.test.mjs"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@supabase/supabase-js": "^2.103.2",
     "next": "^15.3.3",
     "react": "^19.0.0",
