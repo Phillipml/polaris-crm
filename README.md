@@ -13,6 +13,7 @@
 | Estilo | Tailwind CSS v4, PostCSS |
 | Qualidade | ESLint (config Next), Prettier |
 | Backend-as-a-service (cliente) | `@supabase/supabase-js` (cliente browser; variáveis `NEXT_PUBLIC_*`) |
+| Edge / LLM (servidor) | Supabase Edge Functions (Deno 2), secrets `LLM_*` no projeto |
 | Versionamento / docs internas | Git; pasta `roadmap/` com entregas incrementais |
 
 ## Decisões técnicas
@@ -21,9 +22,11 @@
 
 O repositório inclui **`supabase/`** (CLI: `supabase init`) e agora possui migração inicial de multi-tenancy com as tabelas `workspaces` e `workspace_members` em **PostgreSQL via Supabase**. A modelagem usa PK composta em membership (`workspace_id`, `user_id`) para evitar duplicidade de vínculo por usuário no mesmo workspace, com `user_id` ligado a `auth.users.id` para manter coerência com autenticação nativa do Supabase.
 
+A tabela **`campaigns`** (já existente no MVP com `channel`, `description`, `is_active`) foi **estendida** para o edital de campanhas: **`context_markdown`** guarda o contexto da oferta em um único texto longo (Markdown aceito pelo produto); não foi normalizado em várias colunas (oferta, produto, período, etc.) neste passo para manter o MVP simples. **`generation_prompt`** armazena o prompt-base (persona, tom, formato; placeholders para campos do lead serão substituídos na Edge Function). **`trigger_stage_id`** referencia opcionalmente uma etapa do funil do mesmo `workspace_id` para futura automação ao mudar de etapa. **`created_by`** referencia `auth.users` quando o cliente preencher na criação. Colunas antigas (`channel`, `description`) permanecem por compatibilidade com **`lead_message_suggestions`**. No front, **`/settings/campaigns`** lista campanhas do workspace atual (via `localStorage`), com formulários em **nova** e **`/[id]`** para textos longos, canal, ativo/inativo e select de etapa gatilho **desabilitado** (UX “em breve”) até a branch que ligar a automação.
+
 ### Como estruturou a integração com LLM
 
-**Ainda não implementado no código atual.** A estrutura planejada é integrar LLM no backend (Node/Edge Functions) para evitar exposição de chaves no cliente, com camadas de autorização por workspace antes de qualquer inferência e sanitização de payload para reduzir risco de vazamento de dados sensíveis.
+Chaves e escolha de modelo ficam **somente no servidor**: secrets **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** documentados em **`supabase/.env.example`** e aplicados via **`supabase secrets set`** (ou painel do projeto). O front Next **não** recebe `LLM_API_KEY`. A função **`supabase/functions/campaign-generation/`** (Deno 2, `deno.json` por função) foi implementada como endpoint `POST` com validação de JWT, checagem de membership por workspace, carga de campanha+lead+campos custom e chamada ao Google Gemini com saída JSON `{ "messages": string[] }` (2–3 mensagens).
 
 ### Como implementou o multi-tenancy
 
@@ -107,8 +110,12 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Mensagens de campos obrigatórios no Kanban com rótulos legíveis (ex.: LinkedIn, Cargo) em vez de chaves técnicas
 - [x] Telas `/settings/lead-fields` e `/settings/stage-required-fields` com rótulos e textos para perfil não técnico
 - [x] Página `/leads/[id]`: campo custom booleano com layout responsivo, hierarquia clara e bloco compacto (`max-w-sm`) para menos deslocamento do mouse
+- [x] Schema `campaigns` estendido (`context_markdown`, `generation_prompt`, `trigger_stage_id`, `created_by`) alinhado ao edital; RLS existente por workspace
+- [x] Pasta `supabase/functions` com `campaign-generation` (Deno + `deno.json`) e documentação de secrets `LLM_*`
+- [x] `campaign-generation` com JWT + membership + prompt estruturado e geração via Gemini retornando `{ "messages": string[] }`
+- [x] Telas de campanhas: lista, criação e edição em `/settings/campaigns` (contexto Markdown, prompt, toggle ativo; etapa gatilho só leitura/desabilitada até automação)
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
-- [ ] Integração com LLM
+- [ ] Integração com LLM (expandir fluxos de geração e automação por gatilho de etapa)
 
 ---
 
@@ -133,6 +140,18 @@ npm run dev
 
 Mais detalhes: `web/README.md` · Supabase local: `supabase/README.md`.
 
+### Secrets para Edge Functions (LLM)
+
+Variáveis **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** servem às **Supabase Edge Functions** (ex.: `campaign-generation`), **não** ao `web/.env.local`. Exemplo sem valores reais: **`supabase/.env.example`**. Copie para um arquivo local (por exemplo `supabase/.env`, ignorado pelo git) e use `npx supabase@latest secrets set --env-file supabase/.env` com o projeto linkado, ou configure no painel em **Edge Functions → Secrets**.
+
+Para produção, publique as chaves como secrets:
+
+```bash
+npx supabase@latest secrets set --env-file supabase/.env
+```
+
+Nunca commite chaves reais (`LLM_API_KEY`, tokens, credenciais). Consulte a seção homônima em `supabase/README.md`.
+
 ### Scripts úteis (`web/`)
 
 | Comando | Descrição |
@@ -145,5 +164,5 @@ Mais detalhes: `web/README.md` · Supabase local: `supabase/README.md`.
 ### Pastas
 
 - `web/` — Next.js App Router (TypeScript, tema, cliente Supabase no browser)
-- `supabase/` — config e migrações do Supabase (dev local com Docker)
+- `supabase/` — config, migrações do Supabase e **Edge Functions** em `supabase/functions/` (dev local com Docker)
 - `roadmap/` — registro incremental do que foi entregue

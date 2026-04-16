@@ -30,6 +30,8 @@ O arquivo `.env.local` não deve ser versionado (já ignorado pelo `.gitignore`)
 
 Guia completo: **`../supabase/README.md`**.
 
+Secrets **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** são para **Supabase Edge Functions**, não para este arquivo. Veja **`../supabase/.env.example`** e a seção **Edge Functions** em **`../supabase/README.md`**.
+
 ## Scripts
 
 | Comando                | Descrição                      |

@@ -132,6 +132,55 @@ npx supabase@latest migration up
 
 Consulte a [documentação oficial](https://supabase.com/docs/guides/cli) para flags e ambientes (staging/prod).
 
+## Edge Functions (Deno)
+
+Funções ficam em `supabase/functions/<nome>/` com `index.ts` e, por função, um `deno.json` (compiler strict, libs Deno), alinhado ao runtime em `config.toml` (`[edge_runtime]`, `deno_version`).
+
+### Função de exemplo: `campaign-generation`
+
+Endpoint HTTP `POST` para gerar mensagens a partir de campanha e lead.
+
+Payload:
+
+```json
+{ "campaign_id": "<uuid>", "lead_id": "<uuid>" }
+```
+
+Fluxo:
+
+- valida JWT do Supabase (`Authorization: Bearer <token>`)
+- resolve `workspace_id` via lead e valida membership (`workspace_members`)
+- carrega campanha + lead + definições de campos customizados
+- monta prompt em seções `CONTEXTO`, `INSTRUCOES`, `DADOS DO LEAD`
+- chama Google Gemini e força resposta JSON `{ "messages": string[] }` com 2–3 itens
+- responde `401`, `403`, `404` conforme cenário de auth/autorização/registro ausente
+
+### Secrets `LLM_*` (servidor apenas)
+
+Não use essas chaves no app Next (`NEXT_PUBLIC_*`). Exemplo de nomes e formato está em **`supabase/.env.example`** (valores fictícios; não commitar chave real).
+
+Para ambiente linkado ou produção:
+
+```bash
+npx supabase@latest secrets set --env-file supabase/.env
+```
+
+(Use um arquivo local ignorado pelo git, por exemplo `supabase/.env`, copiado do `.env.example`.) No painel: **Project Settings → Edge Functions → Secrets**.
+
+Nunca commite chaves reais (`LLM_API_KEY`, tokens, credenciais). Mantenha apenas placeholders em arquivos versionados como `supabase/.env.example`.
+
+| Variável | Descrição |
+|----------|-----------|
+| `LLM_PROVIDER` | Provedor (`openai`, `anthropic`, `google`, …). |
+| `LLM_MODEL` | Id do modelo (ex.: `gpt-4o-mini`, `claude-3-5-haiku-latest`, `gemini-2.0-flash`). |
+| `LLM_API_KEY` | Chave do provedor. |
+
+### Rodar localmente
+
+```bash
+npx supabase@latest functions serve campaign-generation
+```
+
 ## Parar o ambiente local
 
 ```bash
