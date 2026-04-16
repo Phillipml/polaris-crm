@@ -9,6 +9,35 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      funnel_stages: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          name: string;
+          position: number;
+          is_system: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          name: string;
+          position: number;
+          is_system?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          name?: string;
+          position?: number;
+          is_system?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       workspace_members: {
         Row: {
           workspace_id: string;

@@ -47,10 +47,9 @@ Guia completo: **`../supabase/README.md`**.
 - `app/` — rotas App Router, layout e estilos globais
 - `components/` — layout, providers, UI e utilitários de dev
 - `components/auth/` — estrutura visual compartilhada para telas de autenticação
-- `hooks/` — hooks client-side de dados (ex.: `useLeads`, `useCreateLead`, `useUpdateLead`)
-- `hooks/` — hooks client-side de dados (ex.: `useLeads`, `useCreateLead`, `useUpdateLead`, `useLeadCustomFieldDefinitions`)
+- `hooks/` — hooks client-side de dados (`useLeads`, `useCreateLead`, `useUpdateLead`, `useFunnelStages`, `useLeadCustomFieldDefinitions`)
 - `lib/auth/` — mensagens de erro, política de senha (`password-policy.ts`) e validação compartilhada
-- `lib/leads/` — serviço de leads (`list`, `create`, `update`) com filtro por `workspace_id` e `stage_id`
+- `lib/funnel-stages/` — listagem de etapas por workspace para o board
 - `lib/leads/` — serviço de leads (`list`, `get by id`, `create`, `update`)
 - `lib/lead-custom-fields/` — CRUD de definições em `lead_custom_field_definitions`
 - `lib/supabase/` — factory do cliente browser (`getSupabaseBrowserClient`; chame só no browser, por exemplo em `useEffect` ou em handlers, não no render inicial de Client Components)
@@ -76,7 +75,7 @@ Variáveis esperadas:
 - `/forgot-password` — recuperação em etapas na mesma página: e-mail → código de 6 dígitos do e-mail → nova senha; em API local os códigos aparecem no Inbucket (`http://127.0.0.1:54324`)
 - `/auth/reset-password` — redireciona para `/forgot-password` (compatível com links antigos; preserva `#` da URL)
 - `/onboarding/workspace` — onboarding de workspace: lista workspaces existentes, cria novo via RPC e permite selecionar para continuar
-- `/dashboard` — área inicial para sessão autenticada
+- `/dashboard` — board Kanban com drag and drop por etapa, criação rápida de lead responsiva, busca por nome, loading skeleton, empty states e scroll interno nas colunas para listas grandes
 - `/leads/[id]` — detalhe/edição do lead (dados padrão, custom fields, responsável e observações)
 - `/account/password` — definir ou alterar senha (requer sessão; senão redireciona ao login)
 - `/settings/lead-fields` — configuração de campos customizados do lead (`key`, `label`, `type`) por workspace

@@ -27,6 +27,7 @@ type StandardFormState = {
 export default function LeadDetailsPage() {
   const params = useParams<{ id: string }>();
   const leadId = String(params?.id ?? "");
+  const isValidLeadId = isUuid(leadId);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [lead, setLead] = useState<Lead | null>(null);
   const [isLoadingLead, setIsLoadingLead] = useState(true);
@@ -67,6 +68,13 @@ export default function LeadDetailsPage() {
   useEffect(() => {
     async function loadLead() {
       if (!workspaceId || !leadId) {
+        setIsLoadingLead(false);
+        return;
+      }
+
+      if (!isValidLeadId) {
+        setLead(null);
+        setErrorMessage("ID de lead inválido.");
         setIsLoadingLead(false);
         return;
       }
@@ -114,7 +122,7 @@ export default function LeadDetailsPage() {
     }
 
     void loadLead();
-  }, [leadId, workspaceId]);
+  }, [isValidLeadId, leadId, workspaceId]);
 
   const membersOptions = useMemo(
     () =>
@@ -432,4 +440,10 @@ function nullable(value: string): string | null {
 
 function isObject(value: Json): value is Record<string, Json> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
 }
