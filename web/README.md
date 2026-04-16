@@ -40,6 +40,7 @@ Guia completo: **`../supabase/README.md`**.
 | `npm run lint`         | ESLint (Next)                  |
 | `npm run format`       | Prettier (gravar)              |
 | `npm run format:check` | Prettier (somente verificação) |
+| `npm run test:rls`     | Teste de isolamento RLS        |
 
 ## Pastas (`src/`)
 
@@ -49,6 +50,17 @@ Guia completo: **`../supabase/README.md`**.
 - `lib/auth/` — mensagens de erro, política de senha (`password-policy.ts`) e validação compartilhada
 - `lib/supabase/` — factory do cliente browser (`getSupabaseBrowserClient`; chame só no browser, por exemplo em `useEffect` ou em handlers, não no render inicial de Client Components)
 - `lib/theme/` — constantes e script de bootstrap do tema
+
+## Teste automatizado de RLS
+
+O cenário `tests/rls/leads-workspace-isolation.test.mjs` valida que um usuário autenticado não lista leads de outro workspace mesmo conhecendo `workspace_id` e `lead.id`.
+
+Variáveis esperadas:
+
+- `SUPABASE_TEST_URL` — padrão `http://127.0.0.1:54321`
+- `SUPABASE_TEST_PUBLISHABLE_KEY` — saída de `npx supabase@latest status`
+- `SUPABASE_TEST_SECRET_KEY` — saída de `npx supabase@latest status`
+- `SUPABASE_TEST_PASSWORD` — opcional; padrão `Polaris@Test123!`
 
 ## Rotas de autenticação
 

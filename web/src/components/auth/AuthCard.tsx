@@ -11,7 +11,13 @@ type AuthCardProps = {
   logoHref?: string | null;
 };
 
-export function AuthCard({ title, description, children, footer, logoHref = "/" }: AuthCardProps) {
+export function AuthCard({
+  title,
+  description,
+  children,
+  footer,
+  logoHref = "/",
+}: AuthCardProps) {
   return (
     <div className="min-h-screen bg-bg-base px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-md">
@@ -43,13 +49,18 @@ export function AuthCard({ title, description, children, footer, logoHref = "/" 
           aria-labelledby="auth-title"
         >
           <header className="space-y-2">
-            <h1 id="auth-title" className="text-2xl font-semibold tracking-tight">
+            <h1
+              id="auth-title"
+              className="text-2xl font-semibold tracking-tight"
+            >
               {title}
             </h1>
             <p className="text-sm text-(--text-muted)">{description}</p>
           </header>
           <div className="mt-6">{children}</div>
-          {footer ? <div className="mt-6 text-sm text-(--text-muted)">{footer}</div> : null}
+          {footer ? (
+            <div className="mt-6 text-sm text-(--text-muted)">{footer}</div>
+          ) : null}
         </section>
       </div>
     </div>

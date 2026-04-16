@@ -53,6 +53,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - **Onboarding de workspace com criação/seleção real:** era necessário transformar a tela estática em fluxo funcional sem convites nesta etapa. **Solução:** `/onboarding/workspace` agora lista workspaces do usuário via `workspace_members`, resolve nomes via tabela `workspaces`, permite selecionar um existente e criar novo via RPC `create_workspace_with_owner`, persistindo o workspace escolhido no browser.
 - **Erros de permissão na RPC de criação de workspace:** durante o onboarding ocorreram respostas `403` no endpoint `rpc/create_workspace_with_owner`. **Solução:** migrations adicionais com grants para role `authenticated`, ajuste da função para `security definer`, `grant execute` explícito e policy de leitura de `workspaces` por membership.
 - **Navegação e UX do onboarding de workspace:** era necessário alinhar comportamento de logos e pós-criação. **Solução:** logos clicáveis redirecionam para `/`, criação de workspace não redireciona automaticamente e atualiza a lista local com o item recém-criado; a continuidade acontece ao selecionar um workspace.
+- **Etapas padrão do funil para novos workspaces:** era necessário que cada workspace novo já começasse com um pipeline utilizável sem intervenção manual. **Solução:** migration com função + trigger em `workspaces` para criar automaticamente `Base`, `Lead Mapeado`, `Tentando Contato`, `Conexão Iniciada`, `Desqualificado`, `Qualificado` e `Reunião Agendada`, com `position` sequencial e backfill para workspaces já existentes.
 
 ## Funcionalidades implementadas
 
@@ -83,6 +84,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Onboarding de workspace com criação via RPC e seleção de workspace existente (sem convites nesta branch)
 - [x] Migrations de grants/policies para estabilizar RPC de criação de workspace no Supabase local
 - [x] Criação de workspace sem redirect automático, com atualização imediata da lista
+- [x] Seed automático de etapas padrão do funil para cada workspace
 - [x] Logos do header/onboarding redirecionando para `/`
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM

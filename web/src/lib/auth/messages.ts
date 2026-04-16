@@ -50,7 +50,8 @@ export function getAuthErrorMessage(errorMessage?: string): string {
   if (
     normalized.includes("relation") &&
     normalized.includes("does not exist") &&
-    (normalized.includes("workspace_members") || normalized.includes("workspaces"))
+    (normalized.includes("workspace_members") ||
+      normalized.includes("workspaces"))
   ) {
     return "Estrutura de workspace não encontrada no banco local. Rode as migrações do Supabase e tente novamente.";
   }

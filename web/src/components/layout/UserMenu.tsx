@@ -43,7 +43,10 @@ export function UserMenu() {
 
   if (email === undefined) {
     return (
-      <span className="h-9 w-20 animate-pulse rounded-lg bg-(--surface-hover)" aria-hidden />
+      <span
+        className="h-9 w-20 animate-pulse rounded-lg bg-(--surface-hover)"
+        aria-hidden
+      />
     );
   }
 

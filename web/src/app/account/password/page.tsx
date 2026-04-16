@@ -94,7 +94,9 @@ export default function AccountPasswordPage() {
           description="Defina ou altere a senha usada com e-mail e senha. Se você entrou só por outro método, pode criar uma senha aqui."
         >
           <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
-            <p className="text-xs leading-relaxed text-(--text-muted)">{PASSWORD_POLICY_HINT_PT}</p>
+            <p className="text-xs leading-relaxed text-(--text-muted)">
+              {PASSWORD_POLICY_HINT_PT}
+            </p>
             <div className="space-y-1.5">
               <label htmlFor="password" className="text-sm font-medium">
                 Nova senha
@@ -134,7 +136,9 @@ export default function AccountPasswordPage() {
                 </p>
               ) : null}
               {!errorMessage && successMessage ? (
-                <p className="text-sm font-medium text-emerald-600">{successMessage}</p>
+                <p className="text-sm font-medium text-emerald-600">
+                  {successMessage}
+                </p>
               ) : null}
             </div>
             <div className="flex flex-wrap gap-3">

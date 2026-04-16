@@ -9,7 +9,10 @@ export default function EmailConfirmationPendingPage() {
       footer={
         <p>
           Já confirmou?{" "}
-          <Link className="font-semibold text-(--primary) hover:underline" href="/login">
+          <Link
+            className="font-semibold text-(--primary) hover:underline"
+            href="/login"
+          >
             Ir para login
           </Link>
         </p>
