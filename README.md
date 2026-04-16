@@ -19,19 +19,26 @@
 
 ### Por que escolheu determinada estrutura de banco de dados
 
-O repositório inclui **`supabase/`** (CLI: `supabase init`) com **migração inicial vazia** como baseline até o modelo SDR (contas, leads, pipelines, etc.). A direção é **PostgreSQL via Supabase** com **RLS** quando o multi-tenancy existir. Fluxo local, `start`, link remoto opcional e migrações: **`supabase/README.md`**.
+O repositório inclui **`supabase/`** (CLI: `supabase init`) e agora possui migração inicial de multi-tenancy com as tabelas `workspaces` e `workspace_members` em **PostgreSQL via Supabase**. A modelagem usa PK composta em membership (`workspace_id`, `user_id`) para evitar duplicidade de vínculo por usuário no mesmo workspace, com `user_id` ligado a `auth.users.id` para manter coerência com autenticação nativa do Supabase.
 
 ### Como estruturou a integração com LLM
 
-**Não aplicável no estado atual do MVP.** Quando houver integração (por exemplo assistente de qualificação ou resumo de conversas), esta seção descreverá: provedor, limites de contexto, onde roda a inferência (edge, servidor dedicado) e como dados sensíveis são filtrados ou anonimizados.
+**Ainda não implementado no código atual.** A estrutura planejada é integrar LLM no backend (Node/Edge Functions) para evitar exposição de chaves no cliente, com camadas de autorização por workspace antes de qualquer inferência e sanitização de payload para reduzir risco de vazamento de dados sensíveis.
 
 ### Como implementou o multi-tenancy
 
-**Ainda não implementado.** A intenção típica para CRM B2B é **isolamento por organização** (`org_id` ou equivalente) no PostgreSQL, com **RLS** no Supabase e claims de JWT alinhados ao tenant. Isso será detalhado após a primeira versão de autenticação e modelo de dados.
+Foi implementada a base de **multi-tenancy por workspace** no Supabase:
+
+- `workspaces`: entidade de tenant lógico (`id`, `name`, `created_at`).
+- `workspace_members`: vínculo usuário-workspace com papel (`role`) e PK composta (`workspace_id`, `user_id`).
+- RLS inicial: usuário autenticado lê apenas memberships onde `user_id = auth.uid()`.
+- Criação inicial: usuário autenticado pode inserir workspace e inserir apenas o próprio membership como `owner`.
+- Fluxo transacional recomendado via RPC `create_workspace_with_owner(workspace_name)` para criar workspace + owner membership na mesma chamada.
 
 ### Desafios encontrados e como resolveu
 
 - **Divergência de tema entre SSR e cliente (hidratação):** o tema vinha de `localStorage` / `prefers-color-scheme` no script antes do React, enquanto o servidor não refletia o mesmo estado. **Solução:** tema inicial no servidor via cookie (`getServerTheme`) e headers `Accept-CH` / `Vary` no `next.config.ts`; script de bootstrap só ajusta o DOM quando há valor válido em `localStorage` e sincroniza cookie; `ThemeProvider` recebe `initialTheme` alinhado ao servidor. Detalhes em `roadmap/02-correcao-hidratacao-tema-layout.md`.
+- **Primeira camada de RLS para multi-tenancy:** foi necessário equilibrar simplicidade inicial com segurança de acesso por usuário no Supabase. **Solução:** políticas mínimas e explícitas para leitura de memberships próprios e criação de workspace com owner membership do próprio usuário, além de RPC dedicada para garantir criação consistente em uma única operação.
 
 ## Funcionalidades implementadas
 
@@ -48,8 +55,8 @@ O repositório inclui **`supabase/`** (CLI: `supabase init`) com **migração in
 
 - [ ] Autenticação e perfis de usuário
 - [x] CLI Supabase na raiz (`supabase init`, migração inicial vazia, doc local)
-- [ ] Modelo de dados e migrations de negócio (além do baseline)
-- [ ] Multi-tenancy e RLS
+- [x] Modelo inicial de dados para tenancy (`workspaces` e `workspace_members`)
+- [x] Multi-tenancy inicial e RLS de memberships por usuário
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM
 
