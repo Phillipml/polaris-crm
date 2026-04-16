@@ -19,7 +19,7 @@
 
 ### Por que escolheu determinada estrutura de banco de dados
 
-**Ainda não há esquema de banco versionado neste repositório.** A direção planejada é **PostgreSQL via Supabase** (Row Level Security, políticas por tenant quando o multi-tenancy existir). A escolha de estrutura de tabelas (contas, leads, pipelines, etc.) será documentada aqui quando o modelo for definido e migrado.
+O repositório inclui **`supabase/`** (CLI: `supabase init`) com **migração inicial vazia** como baseline até o modelo SDR (contas, leads, pipelines, etc.). A direção é **PostgreSQL via Supabase** com **RLS** quando o multi-tenancy existir. Fluxo local, `start`, link remoto opcional e migrações: **`supabase/README.md`**.
 
 ### Como estruturou a integração com LLM
 
@@ -47,7 +47,8 @@
 ### Diferenciais / próximos passos (não entregues neste escopo)
 
 - [ ] Autenticação e perfis de usuário
-- [ ] Modelo de dados e migrations Supabase
+- [x] CLI Supabase na raiz (`supabase init`, migração inicial vazia, doc local)
+- [ ] Modelo de dados e migrations de negócio (além do baseline)
 - [ ] Multi-tenancy e RLS
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM
@@ -70,10 +71,10 @@ npm run dev
 
 1. Entre na pasta `web/`.
 2. Copie `web/.env.example` para `web/.env.local` e ajuste os valores.
-3. Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+3. Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (projeto remoto no dashboard **ou** stack local: `npx supabase@latest status` na raiz; use **Project URL** + **Publishable key** no ambiente local).
 4. Reinicie o servidor de desenvolvimento.
 
-Mais detalhes: `web/README.md`.
+Mais detalhes: `web/README.md` · Supabase local: `supabase/README.md`.
 
 ### Scripts úteis (`web/`)
 
@@ -87,4 +88,5 @@ Mais detalhes: `web/README.md`.
 ### Pastas
 
 - `web/` — Next.js App Router (TypeScript, tema, cliente Supabase no browser)
+- `supabase/` — config e migrações do Supabase (dev local com Docker)
 - `roadmap/` — registro incremental do que foi entregue

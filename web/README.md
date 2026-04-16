@@ -16,11 +16,19 @@ MVP front-end com TypeScript, Tailwind CSS v4, ESLint + Prettier e cliente Supab
    cp .env.example .env.local
    ```
 
-2. Edite `.env.local` e preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (projeto Supabase → Settings → API).
+2. Edite `.env.local` com **`NEXT_PUBLIC_SUPABASE_URL`** e **`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`**. No projeto remoto: **Settings → API**. No stack local: saída de `npx supabase@latest status` na raiz do repo (use a **Publishable key** nesse campo).
 
 3. Reinicie `npm run dev` após alterar `.env.local`.
 
 O arquivo `.env.local` não deve ser versionado (já ignorado pelo `.gitignore`).
+
+### Supabase local (dev)
+
+1. Na **raiz** do monorepo, com Docker ativo: `npx supabase@latest start`.
+2. `npx supabase@latest status` → copie **Project URL** (ex.: `http://127.0.0.1:54321`) e **Publishable key** para o `.env.local` do `web/`.
+3. Para aplicar migrações baseline no Postgres local: `npx supabase@latest db reset` (migrações em `supabase/migrations/` + `supabase/seed.sql`).
+
+Guia completo: **`../supabase/README.md`**.
 
 ## Scripts
 
