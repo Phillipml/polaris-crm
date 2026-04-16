@@ -26,7 +26,7 @@ A tabela **`campaigns`** (já existente no MVP com `channel`, `description`, `is
 
 ### Como estruturou a integração com LLM
 
-Chaves e escolha de modelo ficam **somente no servidor**: secrets **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** documentados em **`supabase/.env.example`** e aplicados via **`supabase secrets set`** (ou painel do projeto). O front Next **não** recebe `LLM_API_KEY`. Foi adicionada uma **Edge Function** stub em **`supabase/functions/campaign-generation/`** (Deno 2, `deno.json` por função) que valida presença das variáveis; a montagem do prompt com dados do lead e a chamada HTTP ao provedor entram na sequência, ainda sem implementação de inferência neste commit.
+Chaves e escolha de modelo ficam **somente no servidor**: secrets **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** documentados em **`supabase/.env.example`** e aplicados via **`supabase secrets set`** (ou painel do projeto). O front Next **não** recebe `LLM_API_KEY`. A função **`supabase/functions/campaign-generation/`** (Deno 2, `deno.json` por função) foi implementada como endpoint `POST` com validação de JWT, checagem de membership por workspace, carga de campanha+lead+campos custom e chamada ao Google Gemini com saída JSON `{ "messages": string[] }` (2–3 mensagens).
 
 ### Como implementou o multi-tenancy
 
@@ -111,9 +111,10 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Telas `/settings/lead-fields` e `/settings/stage-required-fields` com rótulos e textos para perfil não técnico
 - [x] Página `/leads/[id]`: campo custom booleano com layout responsivo, hierarquia clara e bloco compacto (`max-w-sm`) para menos deslocamento do mouse
 - [x] Schema `campaigns` estendido (`context_markdown`, `generation_prompt`, `trigger_stage_id`, `created_by`) alinhado ao edital; RLS existente por workspace
-- [x] Pasta `supabase/functions` com função stub `campaign-generation` (Deno + `deno.json`) e documentação de secrets `LLM_*`
+- [x] Pasta `supabase/functions` com `campaign-generation` (Deno + `deno.json`) e documentação de secrets `LLM_*`
+- [x] `campaign-generation` com JWT + membership + prompt estruturado e geração via Gemini retornando `{ "messages": string[] }`
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
-- [ ] Integração com LLM (chamada real ao provedor a partir da Edge Function)
+- [ ] Integração com LLM (expandir fluxos de geração e automação por gatilho de etapa)
 
 ---
 

@@ -138,7 +138,22 @@ Funções ficam em `supabase/functions/<nome>/` com `index.ts` e, por função, 
 
 ### Função de exemplo: `campaign-generation`
 
-Stub HTTP que só valida presença de secrets; a montagem do prompt com campos padrão e custom do lead e a chamada ao provedor entram depois na mesma função ou em funções auxiliares.
+Endpoint HTTP `POST` para gerar mensagens a partir de campanha e lead.
+
+Payload:
+
+```json
+{ "campaign_id": "<uuid>", "lead_id": "<uuid>" }
+```
+
+Fluxo:
+
+- valida JWT do Supabase (`Authorization: Bearer <token>`)
+- resolve `workspace_id` via lead e valida membership (`workspace_members`)
+- carrega campanha + lead + definições de campos customizados
+- monta prompt em seções `CONTEXTO`, `INSTRUCOES`, `DADOS DO LEAD`
+- chama Google Gemini e força resposta JSON `{ "messages": string[] }` com 2–3 itens
+- responde `401`, `403`, `404` conforme cenário de auth/autorização/registro ausente
 
 ### Secrets `LLM_*` (servidor apenas)
 
