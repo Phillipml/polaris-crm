@@ -84,7 +84,11 @@ export default function ForgotPasswordPage() {
         finishFromLink(session.user.email);
         return;
       }
-      if (event === "INITIAL_SESSION" && session?.user?.email && recoveryFromHash()) {
+      if (
+        event === "INITIAL_SESSION" &&
+        session?.user?.email &&
+        recoveryFromHash()
+      ) {
         finishFromLink(session.user.email);
       }
     });
@@ -215,7 +219,10 @@ export default function ForgotPasswordPage() {
       logoHref={step === "email" ? "/" : null}
       footer={
         <div className="flex flex-col gap-2 text-sm">
-          <Link className="font-semibold text-(--primary) hover:underline" href="/login">
+          <Link
+            className="font-semibold text-(--primary) hover:underline"
+            href="/login"
+          >
             Voltar para login
           </Link>
           {step !== "email" ? (
@@ -318,13 +325,16 @@ export default function ForgotPasswordPage() {
               maxLength={6}
               required
               value={otpCode}
-              onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(event) =>
+                setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm tracking-widest outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
             />
           </div>
           {isLocalApi ? (
             <p className="text-xs text-(--text-muted)">
-              Dica: no ambiente local o código está no Inbucket (http://127.0.0.1:54324).
+              Dica: no ambiente local o código está no Inbucket
+              (http://127.0.0.1:54324).
             </p>
           ) : null}
           <div aria-live="polite" className="min-h-5">
@@ -334,7 +344,9 @@ export default function ForgotPasswordPage() {
               </p>
             ) : null}
             {infoMessage ? (
-              <p className="text-sm font-medium text-emerald-600">{infoMessage}</p>
+              <p className="text-sm font-medium text-emerald-600">
+                {infoMessage}
+              </p>
             ) : null}
           </div>
           <Button type="submit" className="w-full" disabled={isVerifying}>
@@ -349,7 +361,9 @@ export default function ForgotPasswordPage() {
             <span className="text-(--text-muted)">Conta:</span>{" "}
             <span className="font-medium">{email.trim()}</span>
           </p>
-          <p className="text-xs leading-relaxed text-(--text-muted)">{PASSWORD_POLICY_HINT_PT}</p>
+          <p className="text-xs leading-relaxed text-(--text-muted)">
+            {PASSWORD_POLICY_HINT_PT}
+          </p>
           <div className="space-y-1.5">
             <label htmlFor="newPassword" className="text-sm font-medium">
               Nova senha

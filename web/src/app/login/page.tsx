@@ -49,7 +49,10 @@ export default function LoginPage() {
       footer={
         <p>
           Não tem conta?{" "}
-          <Link className="font-semibold text-(--primary) hover:underline" href="/register">
+          <Link
+            className="font-semibold text-(--primary) hover:underline"
+            href="/register"
+          >
             Criar conta
           </Link>
         </p>

@@ -60,7 +60,10 @@ export default function RegisterPage() {
       footer={
         <p>
           Já tem conta?{" "}
-          <Link className="font-semibold text-(--primary) hover:underline" href="/login">
+          <Link
+            className="font-semibold text-(--primary) hover:underline"
+            href="/login"
+          >
             Entrar
           </Link>
         </p>
@@ -87,7 +90,9 @@ export default function RegisterPage() {
           <label htmlFor="password" className="text-sm font-medium">
             Senha
           </label>
-          <p className="text-xs leading-relaxed text-(--text-muted)">{PASSWORD_POLICY_HINT_PT}</p>
+          <p className="text-xs leading-relaxed text-(--text-muted)">
+            {PASSWORD_POLICY_HINT_PT}
+          </p>
           <input
             id="password"
             name="password"

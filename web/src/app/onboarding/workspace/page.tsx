@@ -52,7 +52,9 @@ export default function WorkspaceOnboardingPage() {
         return;
       }
 
-      const workspaceIds = (memberships ?? []).map((item) => String(item.workspace_id));
+      const workspaceIds = (memberships ?? []).map((item) =>
+        String(item.workspace_id)
+      );
       const workspaceNameById = new Map<string, string>();
 
       if (workspaceIds.length > 0) {
@@ -79,7 +81,8 @@ export default function WorkspaceOnboardingPage() {
       const normalized: WorkspaceRow[] = (memberships ?? []).map((item) => ({
         workspace_id: String(item.workspace_id),
         role: item.role as WorkspaceRow["role"],
-        workspace_name: workspaceNameById.get(String(item.workspace_id)) ?? null,
+        workspace_name:
+          workspaceNameById.get(String(item.workspace_id)) ?? null,
       }));
 
       setWorkspaces(normalized);
@@ -107,7 +110,9 @@ export default function WorkspaceOnboardingPage() {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) {
       setIsCreating(false);
-      setErrorMessage("Sua sessão expirou. Faça login novamente para criar o workspace.");
+      setErrorMessage(
+        "Sua sessão expirou. Faça login novamente para criar o workspace."
+      );
       router.replace("/login");
       return;
     }
@@ -136,11 +141,15 @@ export default function WorkspaceOnboardingPage() {
       workspace_name: trimmedName,
     };
     setWorkspaces((current) => {
-      const filtered = current.filter((item) => item.workspace_id !== workspaceId);
+      const filtered = current.filter(
+        (item) => item.workspace_id !== workspaceId
+      );
       return [...filtered, newWorkspace];
     });
     setWorkspaceName("");
-    setInfoMessage("Workspace criado com sucesso. Selecione-o na lista para continuar.");
+    setInfoMessage(
+      "Workspace criado com sucesso. Selecione-o na lista para continuar."
+    );
     setIsCreating(false);
   }
 
@@ -157,17 +166,28 @@ export default function WorkspaceOnboardingPage() {
       <div className="mx-auto w-full max-w-2xl">
         <div className="mb-8 flex items-center justify-center">
           <Link href="/" aria-label="Voltar para home">
-            <Image src="/logoFull.svg" alt="PolarisCRM" width={172} height={36} priority />
+            <Image
+              src="/logoFull.svg"
+              alt="PolarisCRM"
+              width={172}
+              height={36}
+              priority
+            />
           </Link>
         </div>
 
         <section className="rounded-2xl border border-(--border) bg-surface p-6 shadow-sm sm:p-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Escolha seu workspace</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Escolha seu workspace
+          </h1>
           <p className="mt-3 text-sm leading-relaxed text-(--text-muted)">
-            Crie seu primeiro workspace ou selecione um existente para entrar no dashboard.
+            Crie seu primeiro workspace ou selecione um existente para entrar no
+            dashboard.
           </p>
 
-          {isLoading ? <p className="mt-6 text-sm text-(--text-muted)">Carregando...</p> : null}
+          {isLoading ? (
+            <p className="mt-6 text-sm text-(--text-muted)">Carregando...</p>
+          ) : null}
 
           {!isLoading && workspaces.length > 0 ? (
             <div className="mt-6 space-y-3">
@@ -190,14 +210,20 @@ export default function WorkspaceOnboardingPage() {
                     disabled={isSelectingId === item.workspace_id}
                     onClick={() => handleSelectWorkspace(item.workspace_id)}
                   >
-                    {isSelectingId === item.workspace_id ? "Entrando..." : "Selecionar"}
+                    {isSelectingId === item.workspace_id
+                      ? "Entrando..."
+                      : "Selecionar"}
                   </Button>
                 </div>
               ))}
             </div>
           ) : null}
 
-          <form className="mt-6 space-y-4" onSubmit={handleCreateWorkspace} noValidate>
+          <form
+            className="mt-6 space-y-4"
+            onSubmit={handleCreateWorkspace}
+            noValidate
+          >
             <div className="space-y-1.5">
               <label htmlFor="workspaceName" className="text-sm font-medium">
                 Novo workspace
@@ -221,7 +247,9 @@ export default function WorkspaceOnboardingPage() {
                 </p>
               ) : null}
               {!errorMessage && infoMessage ? (
-                <p className="text-sm font-medium text-emerald-600">{infoMessage}</p>
+                <p className="text-sm font-medium text-emerald-600">
+                  {infoMessage}
+                </p>
               ) : null}
             </div>
 

@@ -18,7 +18,10 @@ export default function AuthResetPasswordRedirectPage() {
       title="Redirecionando"
       description="A redefinição de senha pelo link agora acontece na mesma página em que você pediu o código."
       footer={
-        <Link className="font-semibold text-(--primary) hover:underline" href="/forgot-password">
+        <Link
+          className="font-semibold text-(--primary) hover:underline"
+          href="/forgot-password"
+        >
           Ir para recuperação de senha
         </Link>
       }
