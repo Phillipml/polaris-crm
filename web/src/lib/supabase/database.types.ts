@@ -216,6 +216,41 @@ export type Database = {
           updated_at?: string;
         };
       };
+      lead_message_suggestions: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          lead_id: string;
+          campaign_id: string;
+          variant_index: number;
+          content: string;
+          source: "manual" | "auto_trigger";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          lead_id: string;
+          campaign_id: string;
+          variant_index: number;
+          content: string;
+          source?: "manual" | "auto_trigger";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          lead_id?: string;
+          campaign_id?: string;
+          variant_index?: number;
+          content?: string;
+          source?: "manual" | "auto_trigger";
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 };
