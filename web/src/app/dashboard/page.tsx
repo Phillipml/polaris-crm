@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
 import { useCreateLead, useLeads } from "@/hooks/use-leads";
-import { updateLead, type Lead } from "@/lib/leads/leads-service";
+import {
+  transitionLeadStageAtomic,
+  type Lead,
+} from "@/lib/leads/leads-service";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
 
@@ -104,22 +107,17 @@ export default function DashboardPage() {
     setDragError(null);
 
     try {
-      const updated = await updateLead({
-        id: movedLead.id,
+      const updated = await transitionLeadStageAtomic({
+        lead_id: movedLead.id,
         workspace_id: workspaceId,
-        stage_id: destinationStageId,
+        destination_stage_id: destinationStageId,
       });
       setLeads((current) =>
         current.map((item) => (item.id === updated.id ? updated : item))
       );
-      /* TODO(branch-05): validar regras de transição entre etapas antes de persistir a troca de stage_id. */
     } catch (err) {
       setBoardLeads(prevBoardLeads);
-      setDragError(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível mover o lead. Alteração revertida."
-      );
+      setDragError(readTransitionError(err));
     }
   }
 
@@ -381,4 +379,22 @@ export default function DashboardPage() {
       </div>
     </AppShell>
   );
+}
+
+function readTransitionError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return "Não foi possível mover o lead. Alteração revertida.";
+  }
+
+  try {
+    const payload = JSON.parse(err.message) as {
+      code?: string;
+      missing_fields?: string[];
+    };
+    if (payload.code === "required_fields_missing" && payload.missing_fields) {
+      return `Campos obrigatórios faltando: ${payload.missing_fields.join(", ")}`;
+    }
+  } catch {}
+
+  return err.message || "Não foi possível mover o lead. Alteração revertida.";
 }

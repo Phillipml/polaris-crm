@@ -103,3 +103,22 @@ export async function updateLead(input: UpdateLeadInput): Promise<Lead> {
 
   return data;
 }
+
+export async function transitionLeadStageAtomic(params: {
+  workspace_id: string;
+  lead_id: string;
+  destination_stage_id: string;
+}): Promise<Lead> {
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase.rpc("transition_lead_stage_atomic", {
+    p_workspace_id: params.workspace_id,
+    p_lead_id: params.lead_id,
+    p_destination_stage_id: params.destination_stage_id,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as Lead;
+}

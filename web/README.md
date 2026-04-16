@@ -75,7 +75,7 @@ Variáveis esperadas:
 - `/forgot-password` — recuperação em etapas na mesma página: e-mail → código de 6 dígitos do e-mail → nova senha; em API local os códigos aparecem no Inbucket (`http://127.0.0.1:54324`)
 - `/auth/reset-password` — redireciona para `/forgot-password` (compatível com links antigos; preserva `#` da URL)
 - `/onboarding/workspace` — onboarding de workspace: lista workspaces existentes, cria novo via RPC e permite selecionar para continuar
-- `/dashboard` — board Kanban com drag and drop por etapa, criação rápida de lead responsiva, busca por nome, loading skeleton, empty states e scroll interno nas colunas para listas grandes
+- `/dashboard` — board Kanban com drag and drop por etapa via RPC atômica de transição (`stage_id`), criação rápida de lead responsiva, busca por nome, loading skeleton, empty states e scroll interno nas colunas para listas grandes
 - `/leads/[id]` — detalhe/edição do lead (dados padrão, custom fields, responsável e observações)
 - `/account/password` — definir ou alterar senha (requer sessão; senão redireciona ao login)
 - `/settings/lead-fields` — configuração de campos customizados do lead (`key`, `label`, `type`) por workspace
