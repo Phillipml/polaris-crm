@@ -19,11 +19,11 @@ import type {
 const STORAGE_KEY = "polaris.currentWorkspaceId";
 
 const fieldTypeOptions: Array<{ value: LeadCustomFieldType; label: string }> = [
-  { value: "text", label: "Texto" },
+  { value: "text", label: "Texto livre" },
   { value: "number", label: "Número" },
-  { value: "boolean", label: "Booleano" },
+  { value: "boolean", label: "Sim ou não" },
   { value: "date", label: "Data" },
-  { value: "select", label: "Seleção" },
+  { value: "select", label: "Lista de opções" },
 ];
 
 export default function LeadFieldsSettingsPage() {
@@ -53,6 +53,14 @@ export default function LeadFieldsSettingsPage() {
   }, []);
 
   const isSubmitting = isCreating || isUpdating;
+
+  const typeLabelByValue = useMemo(() => {
+    const map = new Map<LeadCustomFieldType, string>();
+    for (const option of fieldTypeOptions) {
+      map.set(option.value, option.label);
+    }
+    return map;
+  }, []);
 
   const submitLabel = useMemo(() => {
     if (isSubmitting && editingId) {
@@ -100,12 +108,12 @@ export default function LeadFieldsSettingsPage() {
     const normalizedKey = normalizeKey(formKey);
     const normalizedLabel = formLabel.trim();
     if (!normalizedKey || !normalizedLabel) {
-      setErrorMessage("Preencha key e label.");
+      setErrorMessage("Preencha o identificador e o nome exibido.");
       return;
     }
 
     if (hasDuplicateKey(normalizedKey, definitions, editingId)) {
-      setErrorMessage("A key já existe neste workspace.");
+      setErrorMessage("Já existe um campo com este identificador.");
       return;
     }
 
@@ -138,7 +146,7 @@ export default function LeadFieldsSettingsPage() {
       const message =
         err instanceof Error ? err.message : "Não foi possível salvar o campo.";
       if (message.toLowerCase().includes("duplicate")) {
-        setErrorMessage("A key já existe neste workspace.");
+        setErrorMessage("Já existe um campo com este identificador.");
         return;
       }
       setErrorMessage("Não foi possível salvar o campo.");
@@ -177,7 +185,7 @@ export default function LeadFieldsSettingsPage() {
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <Card
           title="Configurações → Campos do lead"
-          description="Crie, edite e remova definições de campos customizados por workspace."
+          description="Defina campos extras do lead (nome na tela, tipo de resposta). O identificador interno é gerado a partir do que você digitar e serve para o sistema e relatórios."
         >
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <Link
@@ -206,27 +214,31 @@ export default function LeadFieldsSettingsPage() {
           <form className="grid gap-4 sm:grid-cols-4" onSubmit={handleSubmit}>
             <div className="space-y-1 sm:col-span-1">
               <label htmlFor="key" className="text-sm font-medium">
-                key
+                Identificador interno
               </label>
               <input
                 id="key"
                 value={formKey}
                 onChange={(event) => setFormKey(event.target.value)}
-                placeholder="segmento_mercado"
+                placeholder="Ex.: segmento de mercado"
                 className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
                 required
               />
+              <p className="text-xs text-(--text-muted)">
+                Ao salvar, o sistema normaliza em minúsculas e usa sublinhado
+                no lugar de espaços (ex.: segmento_mercado).
+              </p>
             </div>
 
             <div className="space-y-1 sm:col-span-2">
               <label htmlFor="label" className="text-sm font-medium">
-                label
+                Nome na tela
               </label>
               <input
                 id="label"
                 value={formLabel}
                 onChange={(event) => setFormLabel(event.target.value)}
-                placeholder="Segmento de mercado"
+                placeholder="Ex.: Segmento de mercado"
                 className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
                 required
               />
@@ -234,7 +246,7 @@ export default function LeadFieldsSettingsPage() {
 
             <div className="space-y-1 sm:col-span-1">
               <label htmlFor="type" className="text-sm font-medium">
-                type
+                Tipo de resposta
               </label>
               <select
                 id="type"
@@ -282,10 +294,10 @@ export default function LeadFieldsSettingsPage() {
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-(--border)">
-                  <th className="py-2 pr-4 font-semibold">key</th>
-                  <th className="py-2 pr-4 font-semibold">label</th>
-                  <th className="py-2 pr-4 font-semibold">type</th>
-                  <th className="py-2 pr-4 font-semibold">ações</th>
+                  <th className="py-2 pr-4 font-semibold">Identificador</th>
+                  <th className="py-2 pr-4 font-semibold">Nome na tela</th>
+                  <th className="py-2 pr-4 font-semibold">Tipo de resposta</th>
+                  <th className="py-2 pr-4 font-semibold">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -309,11 +321,13 @@ export default function LeadFieldsSettingsPage() {
                         key={item.id}
                         className="border-b border-(--border)/60"
                       >
-                        <td className="py-3 pr-4 font-mono text-xs">
+                        <td className="py-3 pr-4 text-xs text-(--text-muted)">
                           {item.key}
                         </td>
-                        <td className="py-3 pr-4">{item.label}</td>
-                        <td className="py-3 pr-4">{item.type}</td>
+                        <td className="py-3 pr-4 font-medium">{item.label}</td>
+                        <td className="py-3 pr-4">
+                          {typeLabelByValue.get(item.type) ?? item.type}
+                        </td>
                         <td className="py-3 pr-4">
                           <div className="flex flex-wrap gap-2">
                             <Button

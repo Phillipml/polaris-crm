@@ -13,6 +13,7 @@ import {
 } from "@/hooks/use-stage-required-fields";
 import { Card } from "@/components/ui/Card";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { STANDARD_LEAD_FIELD_LABELS } from "@/lib/stage-required-fields/lead-field-labels";
 import type { StageRequiredFieldKind } from "@/lib/stage-required-fields/stage-required-fields-service";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
@@ -123,10 +124,22 @@ export default function StageRequiredFieldsSettingsPage() {
     [selectedStageId, stages]
   );
 
-  const customFieldOptions = useMemo(
-    () => definitions.map((item) => item.key),
-    [definitions]
-  );
+  function requirementFieldLabel(
+    kind: StageRequiredFieldKind,
+    key: string
+  ): string {
+    if (kind === "standard") {
+      return STANDARD_LEAD_FIELD_LABELS[key] ?? key;
+    }
+    const def = definitions.find((item) => item.key === key);
+    return def?.label ?? `Campo personalizado (${key})`;
+  }
+
+  function requirementKindLabel(kind: StageRequiredFieldKind): string {
+    return kind === "standard"
+      ? "Campo padrão do lead"
+      : "Campo personalizado";
+  }
 
   function resetForm() {
     setFieldKind("standard");
@@ -221,7 +234,7 @@ export default function StageRequiredFieldsSettingsPage() {
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <Card
           title="Configurações → Obrigatoriedades por etapa"
-          description="Defina quais campos são obrigatórios para movimentar o lead para cada etapa."
+          description="Escolha a etapa e marque quais dados do lead precisam estar preenchidos antes de arrastar o card para a coluna seguinte."
         >
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <Link
@@ -293,7 +306,7 @@ export default function StageRequiredFieldsSettingsPage() {
               >
                 <div className="space-y-1 sm:col-span-1">
                   <label htmlFor="fieldKind" className="text-sm font-medium">
-                    field_kind
+                    Tipo de campo
                   </label>
                   <select
                     id="fieldKind"
@@ -303,13 +316,13 @@ export default function StageRequiredFieldsSettingsPage() {
                     }
                     className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
                   >
-                    <option value="standard">standard</option>
-                    <option value="custom">custom</option>
+                    <option value="standard">Campo padrão do lead</option>
+                    <option value="custom">Campo personalizado</option>
                   </select>
                 </div>
                 <div className="space-y-1 sm:col-span-3">
                   <label htmlFor="fieldKey" className="text-sm font-medium">
-                    field_key
+                    Qual campo
                   </label>
                   {fieldKind === "standard" ? (
                     <select
@@ -321,7 +334,7 @@ export default function StageRequiredFieldsSettingsPage() {
                       <option value="">Selecione...</option>
                       {standardFieldKeys.map((key) => (
                         <option key={key} value={key}>
-                          {key}
+                          {STANDARD_LEAD_FIELD_LABELS[key] ?? key}
                         </option>
                       ))}
                     </select>
@@ -332,10 +345,12 @@ export default function StageRequiredFieldsSettingsPage() {
                       onChange={(event) => setFieldKey(event.target.value)}
                       className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
                     >
-                      <option value="">Selecione um custom field...</option>
-                      {customFieldOptions.map((key) => (
-                        <option key={key} value={key}>
-                          {key}
+                      <option value="">
+                        Selecione um campo personalizado...
+                      </option>
+                      {definitions.map((def) => (
+                        <option key={def.id} value={def.key}>
+                          {def.label}
                         </option>
                       ))}
                     </select>
@@ -373,9 +388,9 @@ export default function StageRequiredFieldsSettingsPage() {
                 <table className="min-w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-(--border)">
-                      <th className="py-2 pr-4 font-semibold">field_kind</th>
-                      <th className="py-2 pr-4 font-semibold">field_key</th>
-                      <th className="py-2 pr-4 font-semibold">ações</th>
+                      <th className="py-2 pr-4 font-semibold">Tipo</th>
+                      <th className="py-2 pr-4 font-semibold">Campo</th>
+                      <th className="py-2 pr-4 font-semibold">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -399,9 +414,14 @@ export default function StageRequiredFieldsSettingsPage() {
                             key={item.id}
                             className="border-b border-(--border)/60"
                           >
-                            <td className="py-3 pr-4">{item.field_kind}</td>
-                            <td className="py-3 pr-4 font-mono text-xs">
-                              {item.field_key}
+                            <td className="py-3 pr-4">
+                              {requirementKindLabel(item.field_kind)}
+                            </td>
+                            <td className="py-3 pr-4">
+                              {requirementFieldLabel(
+                                item.field_kind,
+                                item.field_key
+                              )}
                             </td>
                             <td className="py-3 pr-4">
                               <Button
