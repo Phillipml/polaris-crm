@@ -6,9 +6,17 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useCampaigns } from "@/hooks/use-campaigns";
 import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { getLeadById, updateLead, type Lead } from "@/lib/leads/leads-service";
+import {
+  createLeadMessageSuggestions,
+  generateCampaignMessages,
+  listLeadMessageSuggestions,
+  type LeadMessageSuggestion,
+} from "@/lib/lead-message-suggestions/lead-message-suggestions-service";
+import { sendOutreachAndMoveLead } from "@/lib/outreach-events/outreach-events-service";
 import type { Json } from "@/lib/supabase/database.types";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
@@ -32,8 +40,15 @@ export default function LeadDetailsPage() {
   const [lead, setLead] = useState<Lead | null>(null);
   const [isLoadingLead, setIsLoadingLead] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingMessages, setIsGeneratingMessages] = useState(false);
+  const [isSendingMessageId, setIsSendingMessageId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [suggestions, setSuggestions] = useState<LeadMessageSuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [standardForm, setStandardForm] = useState<StandardFormState>({
     full_name: "",
@@ -59,6 +74,14 @@ export default function LeadDetailsPage() {
     workspaceId: workspaceId ?? undefined,
     enabled: Boolean(workspaceId),
   });
+  const { campaigns } = useCampaigns({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId),
+  });
+  const activeCampaigns = useMemo(
+    () => campaigns.filter((item) => item.is_active),
+    [campaigns]
+  );
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -123,6 +146,55 @@ export default function LeadDetailsPage() {
 
     void loadLead();
   }, [isValidLeadId, leadId, workspaceId]);
+
+  useEffect(() => {
+    if (activeCampaigns.length === 0) {
+      setSelectedCampaignId("");
+      return;
+    }
+    setSelectedCampaignId((current) =>
+      current && activeCampaigns.some((item) => item.id === current)
+        ? current
+        : activeCampaigns[0].id
+    );
+  }, [activeCampaigns]);
+
+  useEffect(() => {
+    async function loadSuggestions() {
+      if (!workspaceId || !lead || !selectedCampaignId) {
+        setSuggestions([]);
+        return;
+      }
+
+      setIsLoadingSuggestions(true);
+      setSuggestionsError(null);
+      try {
+        const rows = await listLeadMessageSuggestions({
+          workspaceId,
+          leadId: lead.id,
+          campaignId: selectedCampaignId,
+        });
+        setSuggestions(rows);
+      } catch (err) {
+        setSuggestionsError(
+          err instanceof Error ? err.message : "Não foi possível carregar sugestões."
+        );
+        setSuggestions([]);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }
+
+    void loadSuggestions();
+  }, [lead, selectedCampaignId, workspaceId]);
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return;
+    }
+    const timer = window.setTimeout(() => setToastMessage(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [toastMessage]);
 
   const membersOptions = useMemo(
     () =>
@@ -195,6 +267,83 @@ export default function LeadDetailsPage() {
       );
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleGenerate(sourceMode: "generate" | "regenerate") {
+    if (!workspaceId || !lead || !selectedCampaignId) {
+      setSuggestionsError("Selecione uma campanha ativa para gerar mensagens.");
+      return;
+    }
+
+    setIsGeneratingMessages(true);
+    setSuggestionsError(null);
+    setSuccessMessage(null);
+    try {
+      const generatedMessages = await generateCampaignMessages({
+        campaignId: selectedCampaignId,
+        leadId: lead.id,
+      });
+      const nextVariantBase = suggestions.reduce(
+        (max, row) => Math.max(max, row.variant_index),
+        0
+      );
+      const inserted = await createLeadMessageSuggestions(
+        generatedMessages.map((content, index) => ({
+          workspace_id: workspaceId,
+          lead_id: lead.id,
+          campaign_id: selectedCampaignId,
+          content,
+          variant_index: nextVariantBase + index + 1,
+          source: "manual",
+        }))
+      );
+      setSuggestions((current) => [...current, ...inserted]);
+      setSuccessMessage(
+        sourceMode === "generate"
+          ? "Mensagens geradas e salvas no histórico."
+          : "Nova rodada gerada e adicionada ao histórico."
+      );
+    } catch (err) {
+      setSuggestionsError(
+        err instanceof Error ? err.message : "Não foi possível gerar mensagens."
+      );
+    } finally {
+      setIsGeneratingMessages(false);
+    }
+  }
+
+  async function handleCopy(content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setToastMessage("Mensagem copiada.");
+    } catch {
+      setToastMessage("Falha ao copiar.");
+    }
+  }
+
+  async function handleSendMessage(item: LeadMessageSuggestion) {
+    if (!workspaceId || !lead) {
+      setSuggestionsError("Workspace ou lead não disponível para envio.");
+      return;
+    }
+
+    setIsSendingMessageId(item.id);
+    setSuggestionsError(null);
+    setSuccessMessage(null);
+    try {
+      const updatedLead = await sendOutreachAndMoveLead({
+        workspaceId,
+        leadId: lead.id,
+        campaignId: item.campaign_id,
+        message: item.content,
+      });
+      setLead(updatedLead);
+      setSuccessMessage("Mensagem enviada e lead movido para Tentando Contato.");
+    } catch (err) {
+      setSuggestionsError(readSendError(err));
+    } finally {
+      setIsSendingMessageId(null);
     }
   }
 
@@ -419,10 +568,118 @@ export default function LeadDetailsPage() {
                 />
               </section>
 
+              <section className="space-y-4">
+                <h2 className="text-base font-semibold">Geração de mensagens</h2>
+                <div className="grid gap-3 rounded-xl border border-(--border) bg-(--surface-hover)/25 p-4">
+                  <div className="grid gap-2 sm:max-w-md">
+                    <label htmlFor="campaign-selector" className="text-sm font-medium">
+                      Campanha ativa
+                    </label>
+                    <select
+                      id="campaign-selector"
+                      value={selectedCampaignId}
+                      onChange={(event) => setSelectedCampaignId(event.target.value)}
+                      className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+                    >
+                      {activeCampaigns.length === 0 ? (
+                        <option value="">Nenhuma campanha ativa</option>
+                      ) : null}
+                      {activeCampaigns.map((campaign) => (
+                        <option key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => void handleGenerate("generate")}
+                      disabled={
+                        isGeneratingMessages ||
+                        !workspaceId ||
+                        !lead ||
+                        !selectedCampaignId
+                      }
+                    >
+                      {isGeneratingMessages ? "Gerando..." : "Gerar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void handleGenerate("regenerate")}
+                      disabled={
+                        isGeneratingMessages ||
+                        !workspaceId ||
+                        !lead ||
+                        !selectedCampaignId
+                      }
+                    >
+                      Regenerar
+                    </Button>
+                  </div>
+                  <p className="text-xs text-(--text-muted)">
+                    Decisão desta branch: regenerar cria nova rodada e mantém histórico completo.
+                  </p>
+                </div>
+
+                {isLoadingSuggestions ? (
+                  <p className="text-sm text-(--text-muted)">Carregando sugestões...</p>
+                ) : null}
+                {!isLoadingSuggestions &&
+                selectedCampaignId &&
+                suggestions.length === 0 ? (
+                  <p className="text-sm text-(--text-muted)">
+                    Ainda não há sugestões para esta campanha neste lead.
+                  </p>
+                ) : null}
+                {suggestions.length > 0 ? (
+                  <div className="space-y-3">
+                    {suggestions.map((item) => (
+                      <article
+                        key={item.id}
+                        className="rounded-xl border border-(--border) bg-surface p-4"
+                      >
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs text-(--text-muted)">
+                            Variante #{item.variant_index} ·{" "}
+                            {new Date(item.created_at).toLocaleString("pt-BR")}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="px-3 py-1.5 text-xs"
+                            onClick={() => void handleCopy(item.content)}
+                          >
+                            Copiar
+                          </Button>
+                          <Button
+                            type="button"
+                            className="px-3 py-1.5 text-xs"
+                            onClick={() => void handleSendMessage(item)}
+                            disabled={isSendingMessageId === item.id}
+                          >
+                            {isSendingMessageId === item.id ? "Enviando..." : "Enviar"}
+                          </Button>
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-text">
+                          {item.content}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+
               <div aria-live="polite" className="min-h-6">
                 {errorMessage ? (
                   <p className="text-sm font-medium text-red-500">
                     {errorMessage}
+                  </p>
+                ) : null}
+                {!errorMessage && suggestionsError ? (
+                  <p className="text-sm font-medium text-red-500">
+                    {suggestionsError}
                   </p>
                 ) : null}
                 {!errorMessage && successMessage ? (
@@ -438,6 +695,16 @@ export default function LeadDetailsPage() {
             </form>
           ) : null}
         </Card>
+        <div
+          aria-live="polite"
+          className="pointer-events-none fixed bottom-4 right-4 z-50"
+        >
+          {toastMessage ? (
+            <div className="rounded-lg bg-text px-4 py-2 text-sm font-medium text-bg-base shadow-lg">
+              {toastMessage}
+            </div>
+          ) : null}
+        </div>
       </div>
     </AppShell>
   );
@@ -473,4 +740,26 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
   );
+}
+
+function readSendError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return "Não foi possível enviar a mensagem.";
+  }
+
+  try {
+    const payload = JSON.parse(err.message) as {
+      code?: string;
+      missing_fields?: string[];
+    };
+    if (payload.code === "required_fields_missing") {
+      return "Envio bloqueado por campos obrigatórios da etapa Tentando Contato. Preencha os campos pendentes no lead ou relaxe os requisitos dessa etapa no seed/demo.";
+    }
+  } catch {}
+
+  if (err.message.includes("required_fields_missing")) {
+    return "Envio bloqueado por campos obrigatórios da etapa Tentando Contato. Preencha os campos pendentes no lead ou relaxe os requisitos dessa etapa no seed/demo.";
+  }
+
+  return err.message || "Não foi possível enviar a mensagem.";
 }
