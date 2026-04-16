@@ -54,6 +54,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - **Erros de permissão na RPC de criação de workspace:** durante o onboarding ocorreram respostas `403` no endpoint `rpc/create_workspace_with_owner`. **Solução:** migrations adicionais com grants para role `authenticated`, ajuste da função para `security definer`, `grant execute` explícito e policy de leitura de `workspaces` por membership.
 - **Navegação e UX do onboarding de workspace:** era necessário alinhar comportamento de logos e pós-criação. **Solução:** logos clicáveis redirecionam para `/`, criação de workspace não redireciona automaticamente e atualiza a lista local com o item recém-criado; a continuidade acontece ao selecionar um workspace.
 - **Etapas padrão do funil para novos workspaces:** era necessário que cada workspace novo já começasse com um pipeline utilizável sem intervenção manual. **Solução:** migration com função + trigger em `workspaces` para criar automaticamente `Base`, `Lead Mapeado`, `Tentando Contato`, `Conexão Iniciada`, `Desqualificado`, `Qualificado` e `Reunião Agendada`, com `position` sequencial e backfill para workspaces já existentes.
+- **Gestão de campos customizados do lead por workspace:** era necessário permitir configuração dinâmica de dados do lead sem alterar schema a cada novo campo de negócio. **Solução:** tabela `lead_custom_field_definitions` com unicidade de `key` por workspace e RLS, além de UI em `/settings/lead-fields` para criar, editar e remover (`key`, `label`, `type`).
 
 ## Funcionalidades implementadas
 
@@ -86,6 +87,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Criação de workspace sem redirect automático, com atualização imediata da lista
 - [x] Seed automático de etapas padrão do funil para cada workspace
 - [x] Logos do header/onboarding redirecionando para `/`
+- [x] Configuração de campos customizados do lead por workspace (`/settings/lead-fields`)
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM
 

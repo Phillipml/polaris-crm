@@ -1,0 +1,102 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      lead_custom_field_definitions: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          key: string;
+          label: string;
+          type: "text" | "number" | "boolean" | "date" | "select";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          key: string;
+          label: string;
+          type: "text" | "number" | "boolean" | "date" | "select";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          key?: string;
+          label?: string;
+          type?: "text" | "number" | "boolean" | "date" | "select";
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      leads: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          stage_id: string;
+          owner_user_id: string | null;
+          full_name: string | null;
+          company_name: string | null;
+          email: string | null;
+          phone: string | null;
+          job_title: string | null;
+          linkedin_url: string | null;
+          source: string | null;
+          status: string | null;
+          notes: string | null;
+          custom_fields: Json;
+          last_contacted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          stage_id: string;
+          owner_user_id?: string | null;
+          full_name?: string | null;
+          company_name?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          job_title?: string | null;
+          linkedin_url?: string | null;
+          source?: string | null;
+          status?: string | null;
+          notes?: string | null;
+          custom_fields?: Json;
+          last_contacted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          stage_id?: string;
+          owner_user_id?: string | null;
+          full_name?: string | null;
+          company_name?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          job_title?: string | null;
+          linkedin_url?: string | null;
+          source?: string | null;
+          status?: string | null;
+          notes?: string | null;
+          custom_fields?: Json;
+          last_contacted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+    };
+  };
+};
