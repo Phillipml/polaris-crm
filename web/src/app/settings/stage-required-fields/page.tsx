@@ -272,8 +272,8 @@ export default function StageRequiredFieldsSettingsPage() {
           ) : null}
           {!isCheckingRole && !isAdmin ? (
             <p className="text-sm font-medium text-red-500">
-              Apenas admin/owner do workspace pode alterar obrigatoriedades por
-              etapa.
+              Apenas administradores do workspace podem alterar obrigatoriedades
+              por etapa.
             </p>
           ) : null}
 

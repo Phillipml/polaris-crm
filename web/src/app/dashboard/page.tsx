@@ -22,6 +22,7 @@ import {
   transitionLeadStageAtomic,
   type Lead,
 } from "@/lib/leads/leads-service";
+import { memberAssigneeOptionLabel } from "@/lib/workspaces/member-assignee-label";
 import type { Json } from "@/lib/supabase/database.types";
 import { STANDARD_LEAD_FIELD_LABELS } from "@/lib/stage-required-fields/lead-field-labels";
 import {
@@ -480,7 +481,11 @@ export default function DashboardPage() {
                 <option value="">Todos responsáveis</option>
                 {members.map((member) => (
                   <option key={member.user_id} value={member.user_id}>
-                    {member.user_id.slice(0, 8)}... ({member.role})
+                    {memberAssigneeOptionLabel(
+                      member.user_id,
+                      member.email,
+                      member.role
+                    )}
                   </option>
                 ))}
               </select>

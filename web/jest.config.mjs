@@ -11,6 +11,8 @@ const config = {
     "src/lib/auth/messages.ts",
     "src/lib/stage-required-fields/lead-field-labels.ts",
     "src/lib/stage-required-fields/validate-lead-for-stage-requirements.ts",
+    "src/lib/workspaces/workspace-role-label.ts",
+    "src/lib/workspaces/member-assignee-label.ts",
   ],
   coverageDirectory: "coverage",
   coverageReporters: ["text", "html", "lcov"],

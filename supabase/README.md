@@ -77,6 +77,7 @@ Caso apareça `403 Forbidden` ao chamar `rpc/create_workspace_with_owner`, confi
 - `20260416031500_workspace_grants_authenticated.sql`
 - `20260416033000_fix_workspace_rpc_security_and_select_policy.sql`
 - `20260418120000_workspace_invites_and_members_admin_rls.sql` (convites, RLS admin/member em `workspace_members`, RPCs de convite e diretório)
+- `20260419120000_list_workspace_members_for_assignee.sql` (RPC `list_workspace_members_for_assignee(p_workspace uuid)` retorna `user_id`, `email`, `role` e `created_at` para qualquer membro do workspace; usada no front para rótulos de responsável no Kanban e no lead)
 
 Com o stack local ativo:
 
