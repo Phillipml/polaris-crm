@@ -84,7 +84,27 @@ npx supabase@latest migration list --local
 npx supabase@latest db push --local
 ```
 
+### RPC de métricas do dashboard (`workspace_dashboard_stats`)
+
+Existe a função `public.workspace_dashboard_stats(p_workspace uuid)` para retornar em uma chamada:
+
+- `total_leads` do workspace
+- `stage_counts` como `jsonb` (`{ "<stage_id>": <count> }`)
+- `suggestions_last_7d` com total de `lead_message_suggestions` nos últimos 7 dias
+
+A função usa `SECURITY DEFINER` com `search_path` restrito (`public, pg_temp`) e valida membership por `workspace_members` com base em `auth.uid()`. Sem sessão autenticada ou sem vínculo com o workspace, a função lança erro (`not_authenticated` / `forbidden_workspace`). O execute é concedido para `authenticated`.
+
+Exemplo:
+
+```sql
+select * from public.workspace_dashboard_stats('00000000-0000-0000-0000-000000000000'::uuid);
+```
+
 ## Migrações
+
+### Índice de performance para board por etapa
+
+Há índice composto em `public.leads(workspace_id, stage_id)` para suportar consultas do Kanban e contadores por etapa no contexto de um workspace. A migration `20260417190000_ensure_leads_workspace_stage_index.sql` garante esse índice com `create index if not exists`.
 
 ### Criar uma nova migração (arquivo SQL vazio para você editar)
 

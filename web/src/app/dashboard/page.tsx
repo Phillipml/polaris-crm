@@ -149,6 +149,23 @@ export default function DashboardPage() {
 
   const hasAnyLead = boardLeads.length > 0;
   const hasAnyVisibleLead = visibleLeads.length > 0;
+  const totalLeads = boardLeads.length;
+
+  const stageStats = useMemo(() => {
+    const max = Math.max(
+      1,
+      ...stages.map((stage) => leadsByStage.get(stage.id)?.length ?? 0)
+    );
+    return stages.map((stage) => {
+      const count = leadsByStage.get(stage.id)?.length ?? 0;
+      return {
+        id: stage.id,
+        name: stage.name,
+        count,
+        percent: Math.round((count / max) * 100),
+      };
+    });
+  }, [stages, leadsByStage]);
 
   async function handleDragEnd(result: DropResult) {
     if (!workspaceId) return;
@@ -294,6 +311,12 @@ export default function DashboardPage() {
             >
               Campanhas
             </Link>
+            <a
+              href="#kanban-board"
+              className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
+            >
+              Ir para Kanban
+            </a>
             <Link
               href="/onboarding/workspace"
               className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
@@ -439,6 +462,56 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
+          {workspaceId && !isLoadingStages && !isLoadingLeads ? (
+            <section className="mt-6 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <article className="rounded-xl border border-(--border) bg-surface p-4">
+                  <p className="text-xs text-(--text-muted)">Total de leads</p>
+                  <p className="mt-2 text-2xl font-semibold text-text">
+                    {totalLeads}
+                  </p>
+                </article>
+                {stageStats.map((item) => (
+                  <article
+                    key={item.id}
+                    className="rounded-xl border border-(--border) bg-surface p-4"
+                  >
+                    <p className="truncate text-xs text-(--text-muted)">
+                      {item.name}
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-text">
+                      {item.count}
+                    </p>
+                  </article>
+                ))}
+              </div>
+
+              <article className="rounded-xl border border-(--border) bg-surface p-4">
+                <h2 className="text-sm font-semibold text-text">
+                  Distribuição por etapa
+                </h2>
+                <div className="mt-3 space-y-3">
+                  {stageStats.map((item) => (
+                    <div key={item.id} className="space-y-1">
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="truncate text-(--text-muted)">
+                          {item.name}
+                        </span>
+                        <span className="font-semibold text-text">{item.count}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-(--surface-hover)">
+                        <div
+                          className="h-2 rounded-full bg-(--primary)"
+                          style={{ width: `${item.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </section>
+          ) : null}
+
           {workspaceId && (isLoadingStages || isLoadingLeads) ? (
             <div className="mt-6 grid gap-4 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, index) => (
@@ -483,7 +556,10 @@ export default function DashboardPage() {
 
               {hasAnyVisibleLead ? (
                 <DragDropContext onDragEnd={handleDragEnd}>
-                  <div className="mt-6 flex gap-4 overflow-x-auto pb-2">
+                  <div
+                    id="kanban-board"
+                    className="mt-6 flex gap-4 overflow-x-auto pb-2"
+                  >
                     {stages.map((stage) => (
                       <Droppable droppableId={stage.id} key={stage.id}>
                         {(provided, snapshot) => (
