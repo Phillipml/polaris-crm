@@ -11,6 +11,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useCampaigns } from "@/hooks/use-campaigns";
+import { useCampaignMessageCounts } from "@/hooks/use-campaign-message-counts";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
 import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
 import { useCreateLead, useLeads } from "@/hooks/use-leads";
@@ -44,6 +46,9 @@ export default function DashboardPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedStageId, setSelectedStageId] = useState("");
   const [selectedOwnerUserId, setSelectedOwnerUserId] = useState("");
+  const [conversionFromStageId, setConversionFromStageId] = useState("");
+  const [conversionToStageId, setConversionToStageId] = useState("");
+  const [seriesWindowDays, setSeriesWindowDays] = useState<7 | 14 | 30>(14);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newLeadName, setNewLeadName] = useState("");
   const [newLeadCompany, setNewLeadCompany] = useState("");
@@ -84,6 +89,18 @@ export default function DashboardPage() {
     enabled: Boolean(workspaceId),
   });
   const { createLead, isLoading: isCreatingLead } = useCreateLead();
+  const { campaigns } = useCampaigns({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId),
+  });
+  const {
+    counts: campaignMessageCounts,
+    isLoading: isLoadingCampaignMessageCounts,
+    error: campaignMessageCountsError,
+  } = useCampaignMessageCounts({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId),
+  });
   const { members } = useWorkspaceMembers({
     workspaceId: workspaceId ?? undefined,
     enabled: Boolean(workspaceId),
@@ -145,6 +162,28 @@ export default function DashboardPage() {
   }, [searchInput]);
 
   useEffect(() => {
+    if (uniqueStages.length === 0) {
+      setConversionFromStageId("");
+      setConversionToStageId("");
+      return;
+    }
+
+    const fromIsValid = uniqueStages.some(
+      (stage) => stage.id === conversionFromStageId
+    );
+    const toIsValid = uniqueStages.some((stage) => stage.id === conversionToStageId);
+
+    if (!fromIsValid) {
+      setConversionFromStageId(uniqueStages[0].id);
+    }
+    if (!toIsValid) {
+      setConversionToStageId(
+        (uniqueStages[1] ?? uniqueStages[0]).id
+      );
+    }
+  }, [conversionFromStageId, conversionToStageId, uniqueStages]);
+
+  useEffect(() => {
     const byId = new Map<string, Lead>();
     for (const lead of leads) {
       byId.set(lead.id, lead);
@@ -189,6 +228,64 @@ export default function DashboardPage() {
       };
     });
   }, [uniqueStages, leadsByStage]);
+
+  const conversionMetrics = useMemo(() => {
+    const fromCount = conversionFromStageId
+      ? leadsByStage.get(conversionFromStageId)?.length ?? 0
+      : 0;
+    const toCount = conversionToStageId
+      ? leadsByStage.get(conversionToStageId)?.length ?? 0
+      : 0;
+    if (!fromCount) {
+      return { fromCount, toCount, rate: null as number | null };
+    }
+    return {
+      fromCount,
+      toCount,
+      rate: (toCount / fromCount) * 100,
+    };
+  }, [conversionFromStageId, conversionToStageId, leadsByStage]);
+
+  const leadsCreatedSeries = useMemo(() => {
+    const days = seriesWindowDays;
+    const result: { dayKey: string; label: string; total: number }[] = [];
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const day = new Date();
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() - i);
+      const dayKey = day.toISOString().slice(0, 10);
+      result.push({
+        dayKey,
+        label: day.toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        total: 0,
+      });
+    }
+    const indexByKey = new Map(result.map((item, index) => [item.dayKey, index]));
+    for (const lead of boardLeads) {
+      const key = lead.created_at.slice(0, 10);
+      const index = indexByKey.get(key);
+      if (index !== undefined) {
+        result[index].total += 1;
+      }
+    }
+    return result;
+  }, [boardLeads, seriesWindowDays]);
+
+  const maxSeriesCount = useMemo(
+    () => Math.max(1, ...leadsCreatedSeries.map((item) => item.total)),
+    [leadsCreatedSeries]
+  );
+
+  const campaignNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const campaign of campaigns) {
+      map.set(campaign.id, campaign.name);
+    }
+    return map;
+  }, [campaigns]);
 
   async function handleDragEnd(result: DropResult) {
     if (!workspaceId) return;
@@ -555,6 +652,141 @@ export default function DashboardPage() {
                   </div>
                 </article>
               ) : null}
+            </section>
+          ) : null}
+
+          {workspaceId && !isLoadingStages && !isLoadingLeads && !hasAnyFilter ? (
+            <section className="mt-6 rounded-xl border border-(--border) bg-surface p-4">
+              <h2 className="text-sm font-semibold text-text">
+                Dashboard secundário
+              </h2>
+              <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                <article className="rounded-lg border border-(--border) bg-(--surface-hover)/20 p-3">
+                  <h3 className="text-xs font-semibold text-text">
+                    Taxa de conversão entre etapas
+                  </h3>
+                  <p className="mt-1 text-xs text-(--text-muted)">
+                    Fórmula: leads na etapa destino / leads na etapa origem * 100
+                  </p>
+                  <div className="mt-3 grid gap-2">
+                    <select
+                      value={conversionFromStageId}
+                      onChange={(event) =>
+                        setConversionFromStageId(event.target.value)
+                      }
+                      className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2 text-xs outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+                    >
+                      {uniqueStages.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          Origem: {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={conversionToStageId}
+                      onChange={(event) => setConversionToStageId(event.target.value)}
+                      className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2 text-xs outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+                    >
+                      {uniqueStages.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          Destino: {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold text-text">
+                    {conversionMetrics.rate == null
+                      ? "—"
+                      : `${conversionMetrics.rate.toFixed(1)}%`}
+                  </p>
+                  <p className="text-xs text-(--text-muted)">
+                    {conversionMetrics.toCount} / {conversionMetrics.fromCount} leads
+                  </p>
+                </article>
+
+                <article className="rounded-lg border border-(--border) bg-(--surface-hover)/20 p-3">
+                  <h3 className="text-xs font-semibold text-text">
+                    Série temporal de leads criados
+                  </h3>
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="text-xs text-(--text-muted)">Período:</p>
+                    <select
+                      value={seriesWindowDays}
+                      onChange={(event) =>
+                        setSeriesWindowDays(Number(event.target.value) as 7 | 14 | 30)
+                      }
+                      className="rounded-lg border border-(--border) bg-surface px-2 py-1 text-xs outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+                    >
+                      <option value={7}>7 dias</option>
+                      <option value={14}>14 dias</option>
+                      <option value={30}>30 dias</option>
+                    </select>
+                  </div>
+                  <p className="mt-1 text-xs text-(--text-muted)">
+                    Últimos {seriesWindowDays} dias
+                  </p>
+                  <div className="mt-3 grid grid-cols-7 gap-2">
+                    {leadsCreatedSeries.map((item) => (
+                      <div key={item.dayKey} className="space-y-1 text-center">
+                        <div className="flex h-20 items-end justify-center rounded bg-(--surface-hover)/40 p-1">
+                          <div
+                            className="w-4 rounded bg-(--primary)"
+                            style={{
+                              height: `${Math.max(
+                                6,
+                                Math.round((item.total / maxSeriesCount) * 100)
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-(--text-muted)">{item.label}</p>
+                        <p className="text-[10px] font-semibold text-text">
+                          {item.total}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-(--border) bg-(--surface-hover)/20 p-3">
+                  <h3 className="text-xs font-semibold text-text">
+                    Mensagens por campanha
+                  </h3>
+                  {isLoadingCampaignMessageCounts ? (
+                    <p className="mt-2 text-xs text-(--text-muted)">Carregando...</p>
+                  ) : null}
+                  {!isLoadingCampaignMessageCounts && campaignMessageCountsError ? (
+                    <p className="mt-2 text-xs font-medium text-red-500">
+                      {campaignMessageCountsError}
+                    </p>
+                  ) : null}
+                  {!isLoadingCampaignMessageCounts &&
+                  !campaignMessageCountsError &&
+                  campaignMessageCounts.length === 0 ? (
+                    <p className="mt-2 text-xs text-(--text-muted)">
+                      Nenhuma mensagem enviada ainda.
+                    </p>
+                  ) : null}
+                  {!isLoadingCampaignMessageCounts &&
+                  !campaignMessageCountsError &&
+                  campaignMessageCounts.length > 0 ? (
+                    <ul className="mt-2 space-y-2">
+                      {campaignMessageCounts.slice(0, 8).map((item) => (
+                        <li
+                          key={item.campaignId}
+                          className="flex items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="truncate text-(--text-muted)">
+                            {campaignNameById.get(item.campaignId) ??
+                              `Campanha ${item.campaignId.slice(0, 8)}...`}
+                          </span>
+                          <span className="font-semibold text-text">{item.total}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </article>
+              </div>
             </section>
           ) : null}
 
