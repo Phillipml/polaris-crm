@@ -1,0 +1,30 @@
+alter table if exists public.workspaces enable row level security;
+alter table if exists public.workspace_members enable row level security;
+alter table if exists public.workspace_invites enable row level security;
+alter table if exists public.funnel_stages enable row level security;
+alter table if exists public.leads enable row level security;
+alter table if exists public.campaigns enable row level security;
+alter table if exists public.lead_message_suggestions enable row level security;
+alter table if exists public.lead_custom_field_definitions enable row level security;
+alter table if exists public.stage_required_fields enable row level security;
+alter table if exists public.outreach_events enable row level security;
+alter table if exists public.generation_jobs enable row level security;
+alter table if exists public.lead_activities enable row level security;
+alter table if exists public.app_runtime_config enable row level security;
+alter table if exists public.lead_stage_webhook_campaign_dedupe enable row level security;
+
+revoke all on table public.app_runtime_config from anon, authenticated;
+revoke all on table public.lead_stage_webhook_campaign_dedupe from anon, authenticated;
+
+grant select, insert, update, delete on table public.workspaces to authenticated;
+grant select, insert, update, delete on table public.workspace_members to authenticated;
+grant select, delete on table public.workspace_invites to authenticated;
+grant select, insert, update, delete on table public.funnel_stages to authenticated;
+grant select, insert, update, delete on table public.leads to authenticated;
+grant select, insert, update, delete on table public.campaigns to authenticated;
+grant select, insert, update, delete on table public.lead_message_suggestions to authenticated;
+grant select, insert, update, delete on table public.lead_custom_field_definitions to authenticated;
+grant select, insert, update, delete on table public.stage_required_fields to authenticated;
+grant select, insert, update, delete on table public.outreach_events to authenticated;
+grant select on table public.generation_jobs to authenticated;
+grant select, insert on table public.lead_activities to authenticated;

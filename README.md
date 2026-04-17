@@ -148,6 +148,31 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 
 ---
 
+## Anexo curto — matriz RLS (tabela x operação x policy)
+
+| Tabela | Select | Insert | Update | Delete |
+|--------|--------|--------|--------|--------|
+| `workspaces` | `select workspaces where member` | `insert workspace as authenticated` | sem policy | sem policy |
+| `workspace_members` | `workspace_members_select_workspace` | `workspace_members_insert_bootstrap_owner` | `workspace_members_update_admin` | `workspace_members_delete_admin` |
+| `workspace_invites` | `workspace_invites_select_admin` | via RPC `SECURITY DEFINER` (`create_workspace_invite`) | sem policy | `workspace_invites_delete_admin` |
+| `funnel_stages` | `funnel_stages_select` | `funnel_stages_insert` | `funnel_stages_update` | `funnel_stages_delete` |
+| `leads` | `leads_select` | `leads_insert` | `leads_update` | `leads_delete` |
+| `campaigns` | `campaigns_select` | `campaigns_insert` | `campaigns_update` | `campaigns_delete` |
+| `lead_message_suggestions` | `lead_message_suggestions_select` | `lead_message_suggestions_insert` | `lead_message_suggestions_update` | `lead_message_suggestions_delete` |
+| `lead_custom_field_definitions` | `lead_custom_field_definitions_select` | `lead_custom_field_definitions_insert` | `lead_custom_field_definitions_update` | `lead_custom_field_definitions_delete` |
+| `stage_required_fields` | `stage_required_fields_select` | `stage_required_fields_insert` | `stage_required_fields_update` | `stage_required_fields_delete` |
+| `outreach_events` | `outreach_events_select` | `outreach_events_insert` | `outreach_events_update` | `outreach_events_delete` |
+| `generation_jobs` | `generation_jobs_select` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` |
+| `lead_activities` | `lead_activities_select` | `lead_activities_insert` | sem grant para `authenticated` | sem grant para `authenticated` |
+| `app_runtime_config` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` |
+| `lead_stage_webhook_campaign_dedupe` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` |
+
+### Teste de isolamento com dois usuários
+
+- Script de smoke test: `supabase/snippets/rls_two_users_smoke_test.sql`.
+- Objetivo: validar que usuário A só enxerga/escreve no workspace A e usuário B só no workspace B.
+- Cobertura mínima no script: `leads` e `lead_activities` (leitura e tentativa de escrita cross-workspace).
+
 ## Web (Next.js) — desenvolvimento rápido
 
 Na pasta `web/`:
