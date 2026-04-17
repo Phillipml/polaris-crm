@@ -13,6 +13,12 @@ type WebhookPayload = {
   old_record?: Record<string, unknown> | null;
 };
 
+type ClientStagePayload = {
+  lead_id: string;
+  old_stage_id: string;
+  new_stage_id: string;
+};
+
 type Database = {
   public: {
     Tables: {
@@ -44,6 +50,12 @@ type Database = {
           generation_prompt: string;
           is_active: boolean;
           trigger_stage_id: string | null;
+        };
+      };
+      workspace_members: {
+        Row: {
+          workspace_id: string;
+          user_id: string;
         };
       };
       lead_custom_field_definitions: {
@@ -100,11 +112,39 @@ type Database = {
   };
 };
 
+const corsHeaders: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-webhook-secret",
+};
+
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: {
+      ...corsHeaders,
+      "content-type": "application/json; charset=utf-8",
+    },
   });
+}
+
+function extractBearerToken(headers: Headers): string | null {
+  const auth = headers.get("authorization") ?? headers.get("Authorization");
+  if (!auth) return null;
+  const [scheme, token] = auth.split(" ");
+  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+  return token;
+}
+
+function isClientStagePayload(body: unknown): body is ClientStagePayload {
+  if (typeof body !== "object" || body === null) return false;
+  const o = body as Record<string, unknown>;
+  if ("type" in o) return false;
+  if (typeof o.lead_id !== "string" || typeof o.old_stage_id !== "string" || typeof o.new_stage_id !== "string") {
+    return false;
+  }
+  return o.lead_id.length > 0 && o.old_stage_id.length > 0 && o.new_stage_id.length > 0;
 }
 
 async function setGenerationJobStatus(
@@ -170,99 +210,19 @@ function buildPrompt(params: {
   ].join("\n");
 }
 
-Deno.serve(async (request) => {
-  if (request.method !== "POST") {
-    return jsonResponse({ error: "method_not_allowed" }, 405);
-  }
-
-  const expectedSecret = Deno.env.get("LEAD_STAGE_WEBHOOK_SECRET");
-  const headerSecret =
-    request.headers.get("x-webhook-secret") ??
-    request.headers.get("X-Webhook-Secret");
-  if (!expectedSecret) {
-    return jsonResponse({ error: "webhook_secret_not_configured" }, 503);
-  }
-  if (!headerSecret) {
-    return jsonResponse({ error: "missing_webhook_secret" }, 401);
-  }
-  if (headerSecret !== expectedSecret) {
-    return jsonResponse({ error: "invalid_webhook_secret" }, 403);
-  }
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const provider = Deno.env.get("LLM_PROVIDER");
-  const model = Deno.env.get("LLM_MODEL");
-  const apiKey = Deno.env.get("LLM_API_KEY");
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: "missing_supabase_env" }, 503);
-  }
-  if (!isAllowedLlmProvider(provider) || !model?.trim() || !apiKey?.trim()) {
-    return jsonResponse(
-      {
-        error: "missing_or_invalid_llm_config",
-        detail: describeInvalidLlmEnv(provider, model, apiKey),
-      },
-      503
-    );
-  }
-
-  let payload: WebhookPayload;
-  try {
-    payload = (await request.json()) as WebhookPayload;
-  } catch {
-    return jsonResponse({ error: "invalid_json_body" }, 400);
-  }
-
-  if (payload.type === "INSERT") {
-    return jsonResponse({ skipped: true, reason: "insert_not_handled" }, 200);
-  }
-
-  if (payload.type !== "UPDATE" || payload.table !== "leads") {
-    return jsonResponse({ skipped: true, reason: "unsupported_event" }, 200);
-  }
-
-  const record = payload.record ?? null;
-  const oldRecord = payload.old_record ?? null;
-  if (!record || !oldRecord) {
-    return jsonResponse({ error: "missing_record_or_old_record" }, 400);
-  }
-
-  const newStageId = readString(record.stage_id);
-  const oldStageId = readString(oldRecord.stage_id);
-  const leadId = readString(record.id);
-  const workspaceId = readString(record.workspace_id);
-
-  if (!leadId || !workspaceId || !newStageId || !oldStageId) {
-    return jsonResponse({ error: "missing_required_fields" }, 400);
-  }
-
-  if (newStageId === oldStageId) {
-    return jsonResponse({ skipped: true, reason: "stage_unchanged" }, 200);
-  }
-
-  const admin = createClient<Database>(supabaseUrl, serviceRoleKey);
-
-  const leadQuery = await admin
-    .from("leads")
-    .select(
-      "id, workspace_id, stage_id, owner_user_id, full_name, company_name, email, phone, job_title, linkedin_url, source, status, notes, custom_fields, updated_at"
-    )
-    .eq("id", leadId)
-    .eq("workspace_id", workspaceId)
-    .maybeSingle();
-
-  if (leadQuery.error) {
-    return jsonResponse({ error: "lead_lookup_failed", detail: leadQuery.error.message }, 500);
-  }
-  if (!leadQuery.data) {
-    return jsonResponse({ error: "lead_not_found" }, 404);
-  }
-  const lead = leadQuery.data;
-  if (lead.stage_id !== newStageId) {
-    return jsonResponse({ skipped: true, reason: "record_not_current" }, 200);
-  }
+async function processStageChangeGeneration(params: {
+  admin: SupabaseClient<Database>;
+  lead: Database["public"]["Tables"]["leads"]["Row"];
+  workspaceId: string;
+  leadId: string;
+  oldStageId: string;
+  newStageId: string;
+  provider: string;
+  model: string;
+  apiKey: string;
+}): Promise<Response> {
+  const { admin, lead, workspaceId, leadId, oldStageId, newStageId, provider, model, apiKey } =
+    params;
 
   const campaignsQuery = await admin
     .from("campaigns")
@@ -423,4 +383,206 @@ Deno.serve(async (request) => {
 
   await setGenerationJobStatus(admin, jobId, "completed");
   return jsonResponse({ processed: true, generated: generatedTotal, results }, 200);
+}
+
+Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "method_not_allowed" }, 405);
+  }
+
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return jsonResponse({ error: "invalid_json_body" }, 400);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const provider = Deno.env.get("LLM_PROVIDER");
+  const model = Deno.env.get("LLM_MODEL");
+  const apiKey = Deno.env.get("LLM_API_KEY");
+  const expectedSecret = Deno.env.get("LEAD_STAGE_WEBHOOK_SECRET");
+  const headerSecret =
+    request.headers.get("x-webhook-secret") ??
+    request.headers.get("X-Webhook-Secret");
+
+  if (isClientStagePayload(rawBody)) {
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+      return jsonResponse({ error: "missing_supabase_env" }, 503);
+    }
+    if (!isAllowedLlmProvider(provider) || !model?.trim() || !apiKey?.trim()) {
+      return jsonResponse(
+        {
+          error: "missing_or_invalid_llm_config",
+          detail: describeInvalidLlmEnv(provider, model, apiKey),
+        },
+        503
+      );
+    }
+
+    const token = extractBearerToken(request.headers);
+    if (!token) {
+      return jsonResponse({ error: "unauthorized" }, 401);
+    }
+
+    const authClient = createClient<Database>(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const userResult = await authClient.auth.getUser(token);
+    const userId = userResult.data.user?.id;
+    if (userResult.error || !userId) {
+      return jsonResponse({ error: "unauthorized" }, 401);
+    }
+
+    const { lead_id: leadId, old_stage_id: oldStageId, new_stage_id: newStageId } = rawBody;
+
+    if (newStageId === oldStageId) {
+      return jsonResponse({ skipped: true, reason: "stage_unchanged" }, 200);
+    }
+
+    const admin = createClient<Database>(supabaseUrl, serviceRoleKey);
+
+    const leadQuery = await admin
+      .from("leads")
+      .select(
+        "id, workspace_id, stage_id, owner_user_id, full_name, company_name, email, phone, job_title, linkedin_url, source, status, notes, custom_fields, updated_at"
+      )
+      .eq("id", leadId)
+      .maybeSingle();
+
+    if (leadQuery.error) {
+      return jsonResponse({ error: "lead_lookup_failed", detail: leadQuery.error.message }, 500);
+    }
+    if (!leadQuery.data) {
+      return jsonResponse({ error: "lead_not_found" }, 404);
+    }
+
+    const lead = leadQuery.data;
+    const workspaceId = lead.workspace_id;
+
+    const memberQuery = await admin
+      .from("workspace_members")
+      .select("user_id")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (memberQuery.error) {
+      return jsonResponse(
+        { error: "membership_lookup_failed", detail: memberQuery.error.message },
+        500
+      );
+    }
+    if (!memberQuery.data) {
+      return jsonResponse({ error: "forbidden" }, 403);
+    }
+
+    if (lead.stage_id !== newStageId) {
+      return jsonResponse({ skipped: true, reason: "record_not_current" }, 200);
+    }
+
+    return await processStageChangeGeneration({
+      admin,
+      lead,
+      workspaceId,
+      leadId,
+      oldStageId,
+      newStageId,
+      provider: provider ?? "",
+      model,
+      apiKey,
+    });
+  }
+
+  const payload = rawBody as WebhookPayload;
+
+  if (!expectedSecret) {
+    return jsonResponse({ error: "webhook_secret_not_configured" }, 503);
+  }
+  if (!headerSecret) {
+    return jsonResponse({ error: "missing_webhook_secret" }, 401);
+  }
+  if (headerSecret !== expectedSecret) {
+    return jsonResponse({ error: "invalid_webhook_secret" }, 403);
+  }
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return jsonResponse({ error: "missing_supabase_env" }, 503);
+  }
+  if (!isAllowedLlmProvider(provider) || !model?.trim() || !apiKey?.trim()) {
+    return jsonResponse(
+      {
+        error: "missing_or_invalid_llm_config",
+        detail: describeInvalidLlmEnv(provider, model, apiKey),
+      },
+      503
+    );
+  }
+
+  if (payload.type === "INSERT") {
+    return jsonResponse({ skipped: true, reason: "insert_not_handled" }, 200);
+  }
+
+  if (payload.type !== "UPDATE" || payload.table !== "leads") {
+    return jsonResponse({ skipped: true, reason: "unsupported_event" }, 200);
+  }
+
+  const record = payload.record ?? null;
+  const oldRecord = payload.old_record ?? null;
+  if (!record || !oldRecord) {
+    return jsonResponse({ error: "missing_record_or_old_record" }, 400);
+  }
+
+  const newStageId = readString(record.stage_id);
+  const oldStageId = readString(oldRecord.stage_id);
+  const leadId = readString(record.id);
+  const workspaceId = readString(record.workspace_id);
+
+  if (!leadId || !workspaceId || !newStageId || !oldStageId) {
+    return jsonResponse({ error: "missing_required_fields" }, 400);
+  }
+
+  if (newStageId === oldStageId) {
+    return jsonResponse({ skipped: true, reason: "stage_unchanged" }, 200);
+  }
+
+  const admin = createClient<Database>(supabaseUrl, serviceRoleKey);
+
+  const leadQuery = await admin
+    .from("leads")
+    .select(
+      "id, workspace_id, stage_id, owner_user_id, full_name, company_name, email, phone, job_title, linkedin_url, source, status, notes, custom_fields, updated_at"
+    )
+    .eq("id", leadId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+
+  if (leadQuery.error) {
+    return jsonResponse({ error: "lead_lookup_failed", detail: leadQuery.error.message }, 500);
+  }
+  if (!leadQuery.data) {
+    return jsonResponse({ error: "lead_not_found" }, 404);
+  }
+  const lead = leadQuery.data;
+  if (lead.stage_id !== newStageId) {
+    return jsonResponse({ skipped: true, reason: "record_not_current" }, 200);
+  }
+
+  return await processStageChangeGeneration({
+    admin,
+    lead,
+    workspaceId,
+    leadId,
+    oldStageId,
+    newStageId,
+    provider: provider ?? "",
+    model,
+    apiKey,
+  });
 });
