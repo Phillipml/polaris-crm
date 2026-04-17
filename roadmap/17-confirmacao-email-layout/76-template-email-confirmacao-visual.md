@@ -1,4 +1,4 @@
-# 77 - Template de e-mail de confirmação alinhado ao recovery
+# 76 - Template de e-mail de confirmação alinhado ao recovery
 
 ## Objetivo
 

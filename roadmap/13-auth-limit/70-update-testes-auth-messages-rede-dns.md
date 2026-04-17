@@ -1,4 +1,4 @@
-# 71 - Atualização de testes de auth para falhas de rede e DNS
+# 70 - Atualização de testes de auth para falhas de rede e DNS
 
 ## Contexto
 

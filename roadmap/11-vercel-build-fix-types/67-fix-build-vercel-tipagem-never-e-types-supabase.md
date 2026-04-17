@@ -1,4 +1,4 @@
-# 68 — Fix build Vercel: tipagem `never` e tipos Supabase
+# 67 — Fix build Vercel: tipagem `never` e tipos Supabase
 
 ## O que foi feito
 

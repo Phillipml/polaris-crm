@@ -1,4 +1,4 @@
-# 74 - Rótulos em português para papéis de workspace
+# 73 - Rótulos em português para papéis de workspace
 
 ## Contexto
 

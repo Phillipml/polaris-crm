@@ -1,4 +1,4 @@
-# 76 - Logout no header: redirecionamento confiável para `/login`
+# 75 - Logout no header: redirecionamento confiável para `/login`
 
 ## Problema
 

@@ -1,4 +1,4 @@
-# 83 — CORS e OPTIONS na Edge campaign-generation (Vercel)
+# 77 — CORS e OPTIONS na Edge campaign-generation (Vercel)
 
 ## Problema
 
@@ -10,4 +10,4 @@ Em `supabase/functions/campaign-generation/index.ts`: mesmos cabeçalhos CORS qu
 
 ## Deploy
 
-`npx supabase@latest functions deploy campaign-generation` no projeto linkado (`flwzdemuhyveylyvgtcz`).
+`npx supabase@latest functions deploy campaign-generation` no projeto linkado.

@@ -1,4 +1,4 @@
-# 84 — Reordenação em duas fases, slug dedupe e remover etapa de sistema
+# 78 — Reordenação em duas fases, slug dedupe e remover etapa de sistema
 
 ## Problemas
 

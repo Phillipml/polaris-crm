@@ -1,4 +1,4 @@
-# 85 — Reordenar etapas: faixa temporária alta + bloqueio de linhas
+# 80 — Reordenar etapas: faixa temporária alta + bloqueio de linhas
 
 ## Problema
 
