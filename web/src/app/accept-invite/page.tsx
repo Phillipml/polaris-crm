@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { WORKSPACE_STORAGE_KEY } from "@/hooks/use-resolved-workspace-id";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 
 function buildLoginHref(token: string): string {
@@ -83,7 +84,7 @@ export default function AcceptInvitePage() {
       }
 
       if (payload?.workspace_id) {
-        localStorage.setItem("polaris.currentWorkspaceId", payload.workspace_id);
+        localStorage.setItem(WORKSPACE_STORAGE_KEY, payload.workspace_id);
       }
 
       setPhase("done");

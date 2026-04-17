@@ -89,7 +89,10 @@ export async function deleteFunnelStage(params: {
   const { error } = await supabase.rpc("delete_funnel_stage", {
     p_workspace_id: params.workspaceId,
     p_stage_id: params.stageId,
-    p_reallocate_to_stage_id: params.reallocateToStageId,
+    p_reallocate_to_stage_id:
+      params.reallocateToStageId && params.reallocateToStageId.trim() !== ""
+        ? params.reallocateToStageId
+        : null,
   });
 
   if (error) {

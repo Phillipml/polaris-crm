@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   CampaignForm,
@@ -11,13 +11,12 @@ import {
 import { Card } from "@/components/ui/Card";
 import { useCampaign, useUpdateCampaign } from "@/hooks/use-campaigns";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
-
-const STORAGE_KEY = "polaris.currentWorkspaceId";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 
 export default function EditCampaignPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId } = useResolvedWorkspaceId();
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -31,11 +30,6 @@ export default function EditCampaignPage() {
     enabled: Boolean(workspaceId),
   });
   const { updateCampaign, isLoading: isSaving } = useUpdateCampaign();
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   const initialValues = useMemo(() => {
     if (!campaign) return undefined;

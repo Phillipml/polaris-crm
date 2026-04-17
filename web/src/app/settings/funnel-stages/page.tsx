@@ -13,11 +13,11 @@ import {
   useReorderFunnelStages,
   useUpdateFunnelStageName,
 } from "@/hooks/use-funnel-stages";
-
-const STORAGE_KEY = "polaris.currentWorkspaceId";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 
 export default function FunnelStagesSettingsPage() {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId, isResolving: isResolvingWorkspace } =
+    useResolvedWorkspaceId();
   const [newStageName, setNewStageName] = useState("");
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [editingStageName, setEditingStageName] = useState("");
@@ -38,11 +38,6 @@ export default function FunnelStagesSettingsPage() {
   const { updateStageName, isLoading: isUpdating } = useUpdateFunnelStageName();
   const { reorderStages, isLoading: isReordering } = useReorderFunnelStages();
   const { deleteStage, isLoading: isDeleting } = useDeleteFunnelStage();
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   const deleteStageItem = useMemo(
     () => stages.find((stage) => stage.id === deleteModalStageId) ?? null,
@@ -200,7 +195,10 @@ export default function FunnelStagesSettingsPage() {
               Regras por etapa
             </Link>
             <p className="text-xs text-(--text-muted)">
-              Workspace atual: {workspaceId ?? "não selecionado"}
+              Workspace atual:{" "}
+              {isResolvingWorkspace
+                ? "verificando…"
+                : (workspaceId ?? "não selecionado — vá ao onboarding")}
             </p>
           </div>
 
@@ -216,13 +214,25 @@ export default function FunnelStagesSettingsPage() {
             </Button>
           </form>
 
-          {isLoading ? (
+          {isResolvingWorkspace || isLoading ? (
             <p className="text-sm text-(--text-muted)">Carregando etapas...</p>
           ) : null}
 
-          {!isLoading && stages.length === 0 ? (
+          {!isResolvingWorkspace &&
+          !isLoading &&
+          workspaceId &&
+          stages.length === 0 ? (
             <p className="text-sm text-(--text-muted)">
-              Nenhuma etapa encontrada para este workspace.
+              Nenhuma etapa encontrada para este workspace. Se o workspace foi
+              recriado após reset do banco, confira se as etapas padrão foram
+              criadas ou crie uma etapa abaixo.
+            </p>
+          ) : null}
+
+          {!isResolvingWorkspace && !workspaceId && !isLoading ? (
+            <p className="text-sm text-(--text-muted)">
+              Nenhum workspace válido no navegador. Acesse onboarding e
+              selecione um workspace.
             </p>
           ) : null}
 
@@ -306,7 +316,12 @@ export default function FunnelStagesSettingsPage() {
                           type="button"
                           variant="secondary"
                           onClick={() => openDeleteModal(stage.id)}
-                          disabled={isDeleting}
+                          disabled={isDeleting || stage.is_system}
+                          title={
+                            stage.is_system
+                              ? "Etapas padrão do funil não podem ser removidas."
+                              : undefined
+                          }
                         >
                           Remover
                         </Button>

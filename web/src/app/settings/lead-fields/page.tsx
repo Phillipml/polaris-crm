@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -11,12 +11,11 @@ import {
   useLeadCustomFieldDefinitions,
   useUpdateLeadCustomFieldDefinition,
 } from "@/hooks/use-lead-custom-field-definitions";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 import type {
   LeadCustomFieldDefinition,
   LeadCustomFieldType,
 } from "@/lib/lead-custom-fields/lead-custom-field-definitions-service";
-
-const STORAGE_KEY = "polaris.currentWorkspaceId";
 
 const fieldTypeOptions: Array<{ value: LeadCustomFieldType; label: string }> = [
   { value: "text", label: "Texto livre" },
@@ -27,7 +26,7 @@ const fieldTypeOptions: Array<{ value: LeadCustomFieldType; label: string }> = [
 ];
 
 export default function LeadFieldsSettingsPage() {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId } = useResolvedWorkspaceId();
   const [formKey, setFormKey] = useState("");
   const [formLabel, setFormLabel] = useState("");
   const [formType, setFormType] = useState<LeadCustomFieldType>("text");
@@ -46,11 +45,6 @@ export default function LeadFieldsSettingsPage() {
     useUpdateLeadCustomFieldDefinition();
   const { deleteDefinition, isLoading: isDeleting } =
     useDeleteLeadCustomFieldDefinition();
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   const isSubmitting = isCreating || isUpdating;
 
