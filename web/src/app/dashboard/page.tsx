@@ -149,7 +149,9 @@ export default function DashboardPage() {
 
   const hasAnyLead = boardLeads.length > 0;
   const hasAnyVisibleLead = visibleLeads.length > 0;
-  const totalLeads = boardLeads.length;
+  const totalAllLeads = boardLeads.length;
+  const totalVisibleLeads = visibleLeads.length;
+  const isSearchActive = normalizedSearch.length > 0;
 
   const stageStats = useMemo(() => {
     const max = Math.max(
@@ -464,57 +466,53 @@ export default function DashboardPage() {
 
           {workspaceId && !isLoadingStages && !isLoadingLeads ? (
             <section className="mt-6 space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:max-w-sm">
                 <article className="rounded-xl border border-(--border) bg-surface p-4">
-                  <p className="text-xs text-(--text-muted)">Total de leads</p>
-                  <p className="mt-2 text-2xl font-semibold text-text">
-                    {totalLeads}
+                  <p className="text-xs text-(--text-muted)">
+                    {isSearchActive ? "Leads na busca" : "Total de leads"}
                   </p>
+                  <p className="mt-2 text-2xl font-semibold text-text">
+                    {isSearchActive ? totalVisibleLeads : totalAllLeads}
+                  </p>
+                  {isSearchActive ? (
+                    <p className="mt-1 text-xs text-(--text-muted)">
+                      de {totalAllLeads} no workspace
+                    </p>
+                  ) : null}
                 </article>
-                {stageStats.map((item) => (
-                  <article
-                    key={item.id}
-                    className="rounded-xl border border-(--border) bg-surface p-4"
-                  >
-                    <p className="truncate text-xs text-(--text-muted)">
-                      {item.name}
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-text">
-                      {item.count}
-                    </p>
-                  </article>
-                ))}
               </div>
 
-              <article className="rounded-xl border border-(--border) bg-surface p-4">
-                <h2 className="text-sm font-semibold text-text">
-                  Distribuição por etapa
-                </h2>
-                <div className="mt-3 space-y-3">
-                  {stageStats.map((item) => (
-                    <div key={item.id} className="space-y-1">
-                      <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="truncate text-(--text-muted)">
-                          {item.name}
-                        </span>
-                        <span className="font-semibold text-text">{item.count}</span>
+              {!isSearchActive ? (
+                <article className="rounded-xl border border-(--border) bg-surface p-4">
+                  <h2 className="text-sm font-semibold text-text">
+                    Distribuição por etapa
+                  </h2>
+                  <div className="mt-3 space-y-3">
+                    {stageStats.map((item) => (
+                      <div key={item.id} className="space-y-1">
+                        <div className="flex items-center justify-between gap-3 text-xs">
+                          <span className="truncate text-(--text-muted)">
+                            {item.name}
+                          </span>
+                          <span className="font-semibold text-text">{item.count}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-(--surface-hover)">
+                          <div
+                            className="h-2 rounded-full bg-(--primary)"
+                            style={{ width: `${item.percent}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-(--surface-hover)">
-                        <div
-                          className="h-2 rounded-full bg-(--primary)"
-                          style={{ width: `${item.percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </article>
+                    ))}
+                  </div>
+                </article>
+              ) : null}
             </section>
           ) : null}
 
           {workspaceId && (isLoadingStages || isLoadingLeads) ? (
-            <div className="mt-6 grid gap-4 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, index) => (
+            <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
+              {Array.from({ length: 7 }).map((_, index) => (
                 <section
                   key={index}
                   className="animate-pulse rounded-xl border border-(--border) bg-surface p-3"
@@ -558,7 +556,7 @@ export default function DashboardPage() {
                 <DragDropContext onDragEnd={handleDragEnd}>
                   <div
                     id="kanban-board"
-                    className="mt-6 flex gap-4 overflow-x-auto pb-2"
+                    className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3"
                   >
                     {stages.map((stage) => (
                       <Droppable droppableId={stage.id} key={stage.id}>
@@ -566,7 +564,7 @@ export default function DashboardPage() {
                           <section
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`min-h-[180px] w-[280px] min-w-[280px] rounded-xl border p-3 transition-colors ${
+                            className={`min-h-[180px] min-w-0 rounded-xl border p-3 transition-colors ${
                               snapshot.isDraggingOver
                                 ? "border-(--primary) bg-(--surface-hover)/60"
                                 : "border-(--border) bg-surface"

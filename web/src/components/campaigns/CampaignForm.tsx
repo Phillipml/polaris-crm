@@ -25,6 +25,7 @@ type CampaignFormProps = {
   submitLabel: string;
   isSubmitting: boolean;
   formError: string | null;
+  successMessage?: string | null;
   onSubmit: (values: CampaignFormValues) => Promise<void>;
 };
 
@@ -34,6 +35,7 @@ export function CampaignForm({
   submitLabel,
   isSubmitting,
   formError,
+  successMessage = null,
   onSubmit,
 }: CampaignFormProps) {
   const [name, setName] = useState(initialValues?.name ?? "");
@@ -217,10 +219,17 @@ export function CampaignForm({
         <p className="text-sm font-medium text-red-500">{formError}</p>
       ) : null}
 
-      <div>
+      <div
+        className="flex flex-wrap items-center gap-3"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Salvando..." : submitLabel}
         </Button>
+        {successMessage ? (
+          <p className="text-sm font-medium text-emerald-600">{successMessage}</p>
+        ) : null}
       </div>
     </form>
   );
