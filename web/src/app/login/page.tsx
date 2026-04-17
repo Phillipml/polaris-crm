@@ -32,24 +32,27 @@ export default function LoginPage() {
     event.preventDefault();
     setErrorMessage("");
     setIsSubmitting(true);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    const supabase = getSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+      if (error) {
+        setErrorMessage(getAuthErrorMessage(error));
+        return;
+      }
 
-    setIsSubmitting(false);
-
-    if (error) {
-      setErrorMessage(getAuthErrorMessage(error.message));
-      return;
+      const nextPath = readSafeInternalPath(
+        new URLSearchParams(window.location.search).get("next")
+      );
+      router.push(nextPath ?? "/onboarding/workspace");
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const nextPath = readSafeInternalPath(
-      new URLSearchParams(window.location.search).get("next")
-    );
-    router.push(nextPath ?? "/onboarding/workspace");
   }
 
   return (

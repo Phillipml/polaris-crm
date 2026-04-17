@@ -10,7 +10,9 @@ import {
   getPasswordPolicyError,
   PASSWORD_POLICY_HINT_PT,
 } from "@/lib/auth/password-policy";
+import type { Database } from "@/lib/supabase/database.types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 function isLocalSupabaseApi(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -45,7 +47,13 @@ export default function ForgotPasswordPage() {
       return;
     }
     let cancelled = false;
-    const supabase = getSupabaseBrowserClient();
+    let supabase: SupabaseClient<Database>;
+    try {
+      supabase = getSupabaseBrowserClient();
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+      return;
+    }
 
     function finishFromLink(userEmail: string) {
       if (cancelled || hasRecoveryRef.current) {
@@ -106,28 +114,31 @@ export default function ForgotPasswordPage() {
     setErrorMessage("");
     setInfoMessage("");
     setIsSending(true);
+    try {
+      const redirectTo = `${window.location.origin}/forgot-password`;
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo,
+      });
 
-    const redirectTo = `${window.location.origin}/forgot-password`;
-    const supabase = getSupabaseBrowserClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo,
-    });
+      if (error) {
+        setErrorMessage(getAuthErrorMessage(error));
+        return;
+      }
 
-    setIsSending(false);
-
-    if (error) {
-      setErrorMessage(getAuthErrorMessage(error.message));
-      return;
+      const base =
+        "Se o e-mail estiver cadastrado, enviamos um código de 6 dígitos. Volte a esta página e informe o código abaixo.";
+      const localHint = isLocalApi
+        ? " No ambiente local, abra o Inbucket em http://127.0.0.1:54324 para ver o código."
+        : " Verifique também a pasta de spam.";
+      setInfoMessage(base + localHint);
+      setStep("code");
+      setOtpCode("");
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setIsSending(false);
     }
-
-    const base =
-      "Se o e-mail estiver cadastrado, enviamos um código de 6 dígitos. Volte a esta página e informe o código abaixo.";
-    const localHint = isLocalApi
-      ? " No ambiente local, abra o Inbucket em http://127.0.0.1:54324 para ver o código."
-      : " Verifique também a pasta de spam.";
-    setInfoMessage(base + localHint);
-    setStep("code");
-    setOtpCode("");
   }
 
   async function handleVerifyCode(event: FormEvent<HTMLFormElement>) {
@@ -147,25 +158,30 @@ export default function ForgotPasswordPage() {
     }
 
     setIsVerifying(true);
-    const supabase = getSupabaseBrowserClient();
-    const { data, error } = await supabase.auth.verifyOtp({
-      email: trimmedEmail,
-      token: trimmedCode,
-      type: "recovery",
-    });
-    setIsVerifying(false);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: trimmedEmail,
+        token: trimmedCode,
+        type: "recovery",
+      });
 
-    if (error) {
-      setErrorMessage(getAuthErrorMessage(error.message));
-      return;
-    }
+      if (error) {
+        setErrorMessage(getAuthErrorMessage(error));
+        return;
+      }
 
-    hasRecoveryRef.current = true;
-    if (data.user?.email) {
-      setEmail(data.user.email);
+      hasRecoveryRef.current = true;
+      if (data.user?.email) {
+        setEmail(data.user.email);
+      }
+      setStep("password");
+      setInfoMessage("");
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setIsVerifying(false);
     }
-    setStep("password");
-    setInfoMessage("");
   }
 
   async function handleSavePassword(event: FormEvent<HTMLFormElement>) {
@@ -184,18 +200,22 @@ export default function ForgotPasswordPage() {
     }
 
     setIsSaving(true);
-    const supabase = getSupabaseBrowserClient();
-    const { error } = await supabase.auth.updateUser({ password });
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.updateUser({ password });
 
-    if (error) {
+      if (error) {
+        setErrorMessage(getAuthErrorMessage(error));
+        return;
+      }
+
+      await supabase.auth.signOut();
+      router.replace("/login?reset=1");
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
       setIsSaving(false);
-      setErrorMessage(getAuthErrorMessage(error.message));
-      return;
     }
-
-    await supabase.auth.signOut();
-    setIsSaving(false);
-    router.replace("/login?reset=1");
   }
 
   const cardTitle =

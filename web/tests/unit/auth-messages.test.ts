@@ -79,6 +79,18 @@ describe("getAuthErrorMessage", () => {
     );
   });
 
+  it("mapeia falha de rede", () => {
+    expect(getAuthErrorMessage("TypeError: Failed to fetch")).toBe(
+      "Falha de rede ao conectar com o servidor de autenticação. Verifique DNS/conexão e tente novamente."
+    );
+  });
+
+  it("aceita objeto de erro nativo", () => {
+    expect(getAuthErrorMessage(new Error("network request failed"))).toBe(
+      "Falha de rede ao conectar com o servidor de autenticação. Verifique DNS/conexão e tente novamente."
+    );
+  });
+
   it("mantém fallback para erro desconhecido", () => {
     expect(getAuthErrorMessage("erro inesperado xyz")).toBe(
       "Não foi possível concluir a operação. Tente novamente."
