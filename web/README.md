@@ -43,6 +43,11 @@ Secrets **`LLM_PROVIDER`**, **`LLM_MODEL`** e **`LLM_API_KEY`** são para **Supa
 | `npm run format`       | Prettier (gravar)              |
 | `npm run format:check` | Prettier (somente verificação) |
 | `npm run test:rls`     | Teste de isolamento RLS        |
+| `npm run test:unit` | Jest unitário |
+| `npm run test:unit:coverage` | Jest com cobertura mínima de 91% |
+| `npm run test:integration` | Cypress E2E headless |
+| `npm run test:integration:open` | Cypress E2E interativo |
+| `npm run test:quality-gate` | Unitário (91%+) + integração |
 
 ## Pastas (`src/`)
 

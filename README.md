@@ -112,6 +112,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Onboarding de workspace com criação via RPC e seleção de workspace existente
 - [x] Convites (`workspace_invites`), RLS de admin para membros/convites, RPCs `create_workspace_invite` e `list_workspace_members_directory`, Edge `accept-invite`, UI `/settings/workspace-members` e `/accept-invite`
 - [x] Remoção de workspace por owner via RPC segura (`delete_workspace_as_owner`) com ação na tela de onboarding
+- [x] Base de testes com Jest (unitário) e Cypress (integração), com gate de cobertura mínima de 91% para unitários
 - [x] Migrations de grants/policies para estabilizar RPC de criação de workspace no Supabase local
 - [x] Criação de workspace sem redirect automático, com atualização imediata da lista
 - [x] RPC `workspace_dashboard_stats(p_workspace uuid)` para métricas do dashboard (total de leads, `stage_counts` por `stage_id` e total de sugestões em 7 dias) com `grant execute` para `authenticated` e validação de membership
