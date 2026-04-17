@@ -15,6 +15,7 @@ import { useFunnelStages } from "@/hooks/use-funnel-stages";
 import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
 import { useCreateLead, useLeads } from "@/hooks/use-leads";
 import { useStageRequiredFields } from "@/hooks/use-stage-required-fields";
+import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import {
   transitionLeadStageAtomic,
   type Lead,
@@ -39,7 +40,10 @@ export default function DashboardPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [boardLeads, setBoardLeads] = useState<Lead[]>([]);
   const [dragError, setDragError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedStageId, setSelectedStageId] = useState("");
+  const [selectedOwnerUserId, setSelectedOwnerUserId] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newLeadName, setNewLeadName] = useState("");
   const [newLeadCompany, setNewLeadCompany] = useState("");
@@ -74,9 +78,16 @@ export default function DashboardPage() {
     setLeads,
   } = useLeads({
     workspaceId: workspaceId ?? undefined,
+    stageId: selectedStageId || undefined,
+    ownerUserId: selectedOwnerUserId || undefined,
+    searchText: debouncedSearch || undefined,
     enabled: Boolean(workspaceId),
   });
   const { createLead, isLoading: isCreatingLead } = useCreateLead();
+  const { members } = useWorkspaceMembers({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId),
+  });
   const {
     requirements: baseStageRequirements,
     isLoading: isLoadingBaseRequirements,
@@ -127,6 +138,13 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 350);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchInput]);
+
+  useEffect(() => {
     const byId = new Map<string, Lead>();
     for (const lead of leads) {
       byId.set(lead.id, lead);
@@ -134,21 +152,10 @@ export default function DashboardPage() {
     setBoardLeads([...byId.values()]);
   }, [leads]);
 
-  const normalizedSearch = search.trim().toLowerCase();
-
-  const visibleLeads = useMemo(() => {
-    if (!normalizedSearch) {
-      return boardLeads;
-    }
-    return boardLeads.filter((lead) =>
-      (lead.full_name ?? "").toLowerCase().includes(normalizedSearch)
-    );
-  }, [boardLeads, normalizedSearch]);
-
   const leadsByStage = useMemo(() => {
     const grouped = new Map<string, Lead[]>();
     uniqueStages.forEach((stage) => grouped.set(stage.id, []));
-    visibleLeads.forEach((lead) => {
+    boardLeads.forEach((lead) => {
       const list = grouped.get(lead.stage_id);
       if (list) {
         list.push(lead);
@@ -158,13 +165,14 @@ export default function DashboardPage() {
       list.sort((a, b) => a.created_at.localeCompare(b.created_at))
     );
     return grouped;
-  }, [uniqueStages, visibleLeads]);
+  }, [boardLeads, uniqueStages]);
 
   const hasAnyLead = boardLeads.length > 0;
-  const hasAnyVisibleLead = visibleLeads.length > 0;
-  const totalAllLeads = boardLeads.length;
-  const totalVisibleLeads = visibleLeads.length;
-  const isSearchActive = normalizedSearch.length > 0;
+  const totalLeads = boardLeads.length;
+  const hasAnyFilter =
+    debouncedSearch.length > 0 ||
+    selectedOwnerUserId.length > 0 ||
+    selectedStageId.length > 0;
 
   const stageStats = useMemo(() => {
     const max = Math.max(
@@ -354,12 +362,38 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(280px,420px)_1fr]">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar lead por nome"
-              className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
-            />
+            <div className="grid gap-2 md:grid-cols-3 lg:col-span-2">
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Buscar por nome, empresa ou e-mail"
+                className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25 md:col-span-3 lg:col-span-1"
+              />
+              <select
+                value={selectedOwnerUserId}
+                onChange={(event) => setSelectedOwnerUserId(event.target.value)}
+                className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+              >
+                <option value="">Todos responsáveis</option>
+                {members.map((member) => (
+                  <option key={member.user_id} value={member.user_id}>
+                    {member.user_id.slice(0, 8)}... ({member.role})
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedStageId}
+                onChange={(event) => setSelectedStageId(event.target.value)}
+                className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+              >
+                <option value="">Todas etapas</option>
+                {uniqueStages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             {showCreateForm ? (
               <div className="grid gap-2 rounded-lg border border-(--border) bg-surface p-3 md:grid-cols-2 xl:grid-cols-4">
                 {baseStage ? (
@@ -488,20 +522,15 @@ export default function DashboardPage() {
               <div className="grid gap-3 sm:max-w-sm">
                 <article className="rounded-xl border border-(--border) bg-surface p-4">
                   <p className="text-xs text-(--text-muted)">
-                    {isSearchActive ? "Leads na busca" : "Total de leads"}
+                    {hasAnyFilter ? "Leads filtrados" : "Total de leads"}
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-text">
-                    {isSearchActive ? totalVisibleLeads : totalAllLeads}
+                    {totalLeads}
                   </p>
-                  {isSearchActive ? (
-                    <p className="mt-1 text-xs text-(--text-muted)">
-                      de {totalAllLeads} no workspace
-                    </p>
-                  ) : null}
                 </article>
               </div>
 
-              {!isSearchActive ? (
+              {!hasAnyFilter ? (
                 <article className="rounded-xl border border-(--border) bg-surface p-4">
                   <h2 className="text-sm font-semibold text-text">
                     Distribuição por etapa
@@ -548,7 +577,7 @@ export default function DashboardPage() {
 
           {workspaceId && !isLoadingStages && !isLoadingLeads ? (
             <>
-              {!hasAnyLead ? (
+              {!hasAnyLead && !hasAnyFilter ? (
                 <div className="mt-6 rounded-xl border border-dashed border-(--border) bg-surface p-8 text-center">
                   <p className="text-sm text-(--text-muted)">
                     Nenhum lead ainda neste workspace.
@@ -563,15 +592,15 @@ export default function DashboardPage() {
                 </div>
               ) : null}
 
-              {hasAnyLead && !hasAnyVisibleLead ? (
+              {hasAnyFilter && !hasAnyLead ? (
                 <div className="mt-6 rounded-xl border border-dashed border-(--border) bg-surface p-8 text-center">
                   <p className="text-sm text-(--text-muted)">
-                    Nenhum lead encontrado para a busca atual.
+                    Nenhum lead encontrado para os filtros atuais.
                   </p>
                 </div>
               ) : null}
 
-              {hasAnyVisibleLead ? (
+              {hasAnyLead ? (
                 <DragDropContext onDragEnd={handleDragEnd}>
                   <div
                     id="kanban-board"

@@ -13,6 +13,8 @@ import {
 type UseLeadsParams = {
   workspaceId?: string;
   stageId?: string;
+  ownerUserId?: string;
+  searchText?: string;
   enabled?: boolean;
 };
 
@@ -24,6 +26,8 @@ type MutationState = {
 export function useLeads({
   workspaceId,
   stageId,
+  ownerUserId,
+  searchText,
   enabled = true,
 }: UseLeadsParams) {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -40,14 +44,19 @@ export function useLeads({
     setError(null);
 
     try {
-      const data = await listLeadsByWorkspaceAndStage({ workspaceId, stageId });
+      const data = await listLeadsByWorkspaceAndStage({
+        workspaceId,
+        stageId,
+        ownerUserId,
+        searchText,
+      });
       setLeads(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao listar leads.");
     } finally {
       setIsLoading(false);
     }
-  }, [enabled, stageId, workspaceId]);
+  }, [enabled, ownerUserId, searchText, stageId, workspaceId]);
 
   useEffect(() => {
     void reload();

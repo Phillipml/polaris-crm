@@ -11,6 +11,8 @@ export type Lead = LeadRow;
 export type ListLeadsParams = {
   workspaceId: string;
   stageId?: string;
+  ownerUserId?: string;
+  searchText?: string;
 };
 
 export type CreateLeadInput = Omit<
@@ -32,6 +34,8 @@ export type UpdateLeadInput = Omit<
 export async function listLeadsByWorkspaceAndStage({
   workspaceId,
   stageId,
+  ownerUserId,
+  searchText,
 }: ListLeadsParams): Promise<Lead[]> {
   const supabase = getSupabaseBrowserClient();
   let query = supabase
@@ -42,6 +46,18 @@ export async function listLeadsByWorkspaceAndStage({
 
   if (stageId) {
     query = query.eq("stage_id", stageId);
+  }
+
+  if (ownerUserId) {
+    query = query.eq("owner_user_id", ownerUserId);
+  }
+
+  const normalizedSearch = searchText?.trim();
+  if (normalizedSearch) {
+    const escaped = normalizedSearch.replace(/[%_]/g, "\\$&");
+    query = query.or(
+      `full_name.ilike.%${escaped}%,company_name.ilike.%${escaped}%,email.ilike.%${escaped}%`
+    );
   }
 
   const { data, error } = await query;

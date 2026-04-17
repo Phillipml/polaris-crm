@@ -120,7 +120,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Página de detalhe/edição de lead com seções e salvamento (`/leads/[id]`)
 - [x] Board Kanban no dashboard com drag and drop e persistência de `stage_id`
 - [x] Índice composto garantido em `leads(workspace_id, stage_id)` para consultas por etapa no workspace
-- [x] Board com busca por nome, empty states, skeletons e criação rápida de lead
+- [x] Board com barra de filtros (responsável, etapa e busca textual com debounce), consultas parametrizadas no Supabase, empty states, skeletons e criação rápida de lead
 - [x] Dashboard com card de total, distribuição por barras (oculta durante busca por nome), link rápido para o Kanban
 - [x] Ajustes responsivos do formulário de criação, grade responsiva das colunas do Kanban (sem scroll horizontal do board) e scroll interno por coluna
 - [x] Schema `stage_required_fields` com enum e RLS via vínculo de etapa/workspace
