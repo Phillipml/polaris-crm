@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Confirmar e-mail</title>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 24px 16px;
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      line-height: 1.55;
+      color: #0b1220;
+      background-color: #f4f6f9;
+    "
+  >
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 480px; margin: 0 auto">
+      <tr>
+        <td style="padding: 24px 20px 8px; text-align: center">
+          <img
+            src="{{ .SiteURL }}/logoFull.svg"
+            alt="Polaris CRM"
+            width="200"
+            height="48"
+            style="display: inline-block; max-width: 200px; height: auto; border: 0"
+          />
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 20px 24px">
+          <div
+            style="
+              background: #ffffff;
+              border-radius: 12px;
+              padding: 24px 20px;
+              box-shadow: 0 1px 2px rgba(11, 18, 32, 0.06);
+            "
+          >
+            <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600">Confirmar cadastro</p>
+            <p style="margin: 0 0 18px; font-size: 15px; color: #3d4a5c">
+              Obrigado por criar sua conta no Polaris CRM. Para ativar o acesso, confirme seu endereço de e-mail usando o botão abaixo.
+            </p>
+            <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 20px">
+              <tr>
+                <td style="border-radius: 8px; background: #1d4ed8">
+                  <a
+                    href="{{ .ConfirmationURL }}"
+                    style="
+                      display: inline-block;
+                      padding: 12px 22px;
+                      font-size: 15px;
+                      font-weight: 600;
+                      color: #ffffff;
+                      text-decoration: none;
+                      border-radius: 8px;
+                    "
+                    >Confirmar e-mail</a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin: 0 0 10px; font-size: 14px; color: #3d4a5c">
+              Se o botão não funcionar, copie e cole este link no navegador:
+            </p>
+            <p style="margin: 0 0 20px; font-size: 12px; word-break: break-all; color: #5c6b7d">
+              {{ .ConfirmationURL }}
+            </p>
+            <p style="margin: 0 0 10px; font-size: 14px; color: #3d4a5c">
+              Você também pode usar o código abaixo no fluxo de confirmação do app, quando disponível:
+            </p>
+            <p
+              style="
+                margin: 0;
+                font-size: 22px;
+                font-weight: 700;
+                letter-spacing: 0.2em;
+                text-align: center;
+                padding: 14px 12px;
+                background: #eef2f7;
+                border-radius: 8px;
+                color: #0b1220;
+              "
+            >
+              {{ .Token }}
+            </p>
+            <p style="margin: 18px 0 0; font-size: 13px; color: #5c6b7d">
+              Se você não criou uma conta no Polaris CRM, ignore este e-mail.
+            </p>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
