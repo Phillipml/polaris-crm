@@ -166,3 +166,23 @@ export async function transitionLeadStageAtomic(params: {
 
   return data as Lead;
 }
+
+export async function notifyLeadStageAutoGeneration(params: {
+  lead_id: string;
+  old_stage_id: string;
+  new_stage_id: string;
+}): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) return;
+  const { error } = await supabase.functions.invoke("lead-stage-webhook", {
+    body: {
+      lead_id: params.lead_id,
+      old_stage_id: params.old_stage_id,
+      new_stage_id: params.new_stage_id,
+    },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (error) return;
+}

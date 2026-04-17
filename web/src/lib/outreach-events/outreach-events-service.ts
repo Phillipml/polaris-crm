@@ -1,5 +1,9 @@
 import { insertOutreachSentActivity } from "@/lib/lead-activities/lead-activities-service";
-import { transitionLeadStageAtomic, type Lead } from "@/lib/leads/leads-service";
+import {
+  notifyLeadStageAutoGeneration,
+  transitionLeadStageAtomic,
+  type Lead,
+} from "@/lib/leads/leads-service";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -41,11 +45,33 @@ export async function sendOutreachAndMoveLead(params: {
     throw new Error(insertError.message);
   }
 
+  const { data: leadBefore, error: leadBeforeError } = await supabase
+    .from("leads")
+    .select("stage_id")
+    .eq("id", params.leadId)
+    .eq("workspace_id", params.workspaceId)
+    .maybeSingle();
+
+  if (leadBeforeError) {
+    throw new Error(leadBeforeError.message);
+  }
+  if (!leadBefore) {
+    throw new Error("Lead não encontrado.");
+  }
+
   const updatedLead = await transitionLeadStageAtomic({
     workspace_id: params.workspaceId,
     lead_id: params.leadId,
     destination_stage_id: tryingContactStage.id,
   });
+
+  if (leadBefore.stage_id !== tryingContactStage.id) {
+    void notifyLeadStageAutoGeneration({
+      lead_id: params.leadId,
+      old_stage_id: leadBefore.stage_id,
+      new_stage_id: tryingContactStage.id,
+    });
+  }
 
   try {
     await insertOutreachSentActivity({

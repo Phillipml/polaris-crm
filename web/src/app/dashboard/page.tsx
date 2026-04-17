@@ -20,6 +20,7 @@ import { useCreateLead, useLeads } from "@/hooks/use-leads";
 import { useStageRequiredFields } from "@/hooks/use-stage-required-fields";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import {
+  notifyLeadStageAutoGeneration,
   transitionLeadStageAtomic,
   type Lead,
 } from "@/lib/leads/leads-service";
@@ -312,6 +313,11 @@ export default function DashboardPage() {
       setLeads((current) =>
         current.map((item) => (item.id === updated.id ? updated : item))
       );
+      void notifyLeadStageAutoGeneration({
+        lead_id: movedLead.id,
+        old_stage_id: sourceStageId,
+        new_stage_id: destinationStageId,
+      });
     } catch (err) {
       setBoardLeads(prevBoardLeads);
       setDragError(readTransitionError(err, customKeyToLabel));
