@@ -57,7 +57,16 @@ export default function DashboardPage() {
     workspaceId: workspaceId ?? undefined,
     enabled: Boolean(workspaceId),
   });
-  const baseStage = stages[0] ?? null;
+  const uniqueStages = useMemo(() => {
+    const byId = new Map<string, (typeof stages)[number]>();
+    for (const stage of stages) {
+      if (!byId.has(stage.id)) {
+        byId.set(stage.id, stage);
+      }
+    }
+    return [...byId.values()].sort((a, b) => a.position - b.position);
+  }, [stages]);
+  const baseStage = uniqueStages[0] ?? null;
   const {
     leads,
     isLoading: isLoadingLeads,
@@ -118,7 +127,11 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    setBoardLeads(leads);
+    const byId = new Map<string, Lead>();
+    for (const lead of leads) {
+      byId.set(lead.id, lead);
+    }
+    setBoardLeads([...byId.values()]);
   }, [leads]);
 
   const normalizedSearch = search.trim().toLowerCase();
@@ -134,7 +147,7 @@ export default function DashboardPage() {
 
   const leadsByStage = useMemo(() => {
     const grouped = new Map<string, Lead[]>();
-    stages.forEach((stage) => grouped.set(stage.id, []));
+    uniqueStages.forEach((stage) => grouped.set(stage.id, []));
     visibleLeads.forEach((lead) => {
       const list = grouped.get(lead.stage_id);
       if (list) {
@@ -145,7 +158,7 @@ export default function DashboardPage() {
       list.sort((a, b) => a.created_at.localeCompare(b.created_at))
     );
     return grouped;
-  }, [stages, visibleLeads]);
+  }, [uniqueStages, visibleLeads]);
 
   const hasAnyLead = boardLeads.length > 0;
   const hasAnyVisibleLead = visibleLeads.length > 0;
@@ -156,9 +169,9 @@ export default function DashboardPage() {
   const stageStats = useMemo(() => {
     const max = Math.max(
       1,
-      ...stages.map((stage) => leadsByStage.get(stage.id)?.length ?? 0)
+      ...uniqueStages.map((stage) => leadsByStage.get(stage.id)?.length ?? 0)
     );
-    return stages.map((stage) => {
+    return uniqueStages.map((stage) => {
       const count = leadsByStage.get(stage.id)?.length ?? 0;
       return {
         id: stage.id,
@@ -167,7 +180,7 @@ export default function DashboardPage() {
         percent: Math.round((count / max) * 100),
       };
     });
-  }, [stages, leadsByStage]);
+  }, [uniqueStages, leadsByStage]);
 
   async function handleDragEnd(result: DropResult) {
     if (!workspaceId) return;
@@ -312,6 +325,12 @@ export default function DashboardPage() {
               className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
             >
               Campanhas
+            </Link>
+            <Link
+              href="/settings/workspace-members"
+              className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
+            >
+              Membros
             </Link>
             <a
               href="#kanban-board"
@@ -558,7 +577,7 @@ export default function DashboardPage() {
                     id="kanban-board"
                     className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3"
                   >
-                    {stages.map((stage) => (
+                    {uniqueStages.map((stage) => (
                       <Droppable droppableId={stage.id} key={stage.id}>
                         {(provided, snapshot) => (
                           <section

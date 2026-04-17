@@ -78,12 +78,20 @@ export default function WorkspaceOnboardingPage() {
         });
       }
 
-      const normalized: WorkspaceRow[] = (memberships ?? []).map((item) => ({
-        workspace_id: String(item.workspace_id),
-        role: item.role as WorkspaceRow["role"],
-        workspace_name:
-          workspaceNameById.get(String(item.workspace_id)) ?? null,
-      }));
+      const normalized: WorkspaceRow[] = [];
+      const seenWorkspaceIds = new Set<string>();
+      for (const item of memberships ?? []) {
+        const wid = String(item.workspace_id);
+        if (seenWorkspaceIds.has(wid)) {
+          continue;
+        }
+        seenWorkspaceIds.add(wid);
+        normalized.push({
+          workspace_id: wid,
+          role: item.role as WorkspaceRow["role"],
+          workspace_name: workspaceNameById.get(wid) ?? null,
+        });
+      }
 
       setWorkspaces(normalized);
       setIsLoading(false);

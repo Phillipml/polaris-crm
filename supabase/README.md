@@ -76,6 +76,7 @@ Caso apareça `403 Forbidden` ao chamar `rpc/create_workspace_with_owner`, confi
 - `20260416023000_workspaces_and_memberships_rls.sql`
 - `20260416031500_workspace_grants_authenticated.sql`
 - `20260416033000_fix_workspace_rpc_security_and_select_policy.sql`
+- `20260418120000_workspace_invites_and_members_admin_rls.sql` (convites, RLS admin/member em `workspace_members`, RPCs de convite e diretório)
 
 Com o stack local ativo:
 
@@ -167,6 +168,8 @@ Não deixe **`supabase functions serve ... --env-file supabase/.env`** rodando e
 ### Gateway: `verify_jwt`
 
 Em `supabase/config.toml`, **`campaign-generation`** e **`lead-stage-webhook`** estão com **`verify_jwt = false`** no gateway. Assim o runtime não exige JWT na borda antes do handler (evita **502** / **Missing authorization header** em alguns fluxos com token de sessão e permite o Database Webhook, que manda **`X-Webhook-Secret`** em vez de `Authorization`). A função **`campaign-generation`** continua validando Bearer + `getUser` no código; **`lead-stage-webhook`** continua validando o secret.
+
+A função **`accept-invite`** está com **`verify_jwt = true`**: o gateway exige sessão; o corpo é JSON **`{ "token": "<hex do convite>" }`**. O handler usa o JWT para obter o usuário atual, confere se o e-mail bate com o convite, valida `expires_at` e grava membership com a **service role**. Respostas de regra de negócio usam status **200** e campo **`error`** no JSON para o `supabase.functions.invoke` popular `data` sem disparar erro genérico de HTTP.
 
 Após mudar esse trecho do `config.toml`, rode **`stop`** + **`start`** do stack.
 

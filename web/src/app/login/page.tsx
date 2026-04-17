@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/Button";
 import { getAuthErrorMessage } from "@/lib/auth/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 
+function readSafeInternalPath(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
+    return null;
+  }
+  return raw;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -39,7 +46,10 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/onboarding/workspace");
+    const nextPath = readSafeInternalPath(
+      new URLSearchParams(window.location.search).get("next")
+    );
+    router.push(nextPath ?? "/onboarding/workspace");
   }
 
   return (

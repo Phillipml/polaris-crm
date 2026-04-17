@@ -398,6 +398,9 @@ verify_jwt = false
 [functions.lead-stage-webhook]
 verify_jwt = false
 
+[functions.accept-invite]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327

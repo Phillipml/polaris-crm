@@ -36,9 +36,10 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 
 - `workspaces`: entidade de tenant lógico (`id`, `name`, `created_at`).
 - `workspace_members`: vínculo usuário-workspace com papel (`role`) e PK composta (`workspace_id`, `user_id`).
-- RLS inicial: usuário autenticado lê apenas memberships onde `user_id = auth.uid()`.
-- Criação inicial: usuário autenticado pode inserir workspace e inserir apenas o próprio membership como `owner`.
-- Fluxo transacional recomendado via RPC `create_workspace_with_owner(workspace_name)` para criar workspace + owner membership na mesma chamada.
+- `workspace_invites`: convites pendentes com `email`, `role` (`admin` ou `member`), `token` opaco, `expires_at`, `invited_by` e `accepted_at` quando utilizados.
+- Leitura de equipe: qualquer membro do workspace pode `select` em `workspace_members` daquele workspace; alteração ou remoção de membros e gestão de convites ficam com `owner`/`admin` via RLS e funções `SECURITY DEFINER`.
+- Criação do tenant: fluxo via RPC `create_workspace_with_owner(workspace_name)` para criar workspace + membership `owner` na mesma chamada.
+- Convite: RPC `create_workspace_invite(workspace_id, email, role)` gera token e prazo; a Edge `accept-invite` (JWT obrigatório) valida token, expiração, igualdade do e-mail do convite com o usuário autenticado e insere o membership com `service_role`.
 
 ### Desafios encontrados e como resolveu
 
@@ -62,7 +63,8 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - **Política de senha e OTP de recuperação:** o produto precisava de regras claras de complexidade e de um caminho sem clicar no link. **Solução:** validação compartilhada (8+ caracteres com maiúscula, minúscula, número e especial) em cadastro, troca de senha e reset; fluxo com código de 6 dígitos via `verifyOtp` em `/forgot-password`; Auth local alinhado com `password_requirements` no `config.toml`.
 - **E-mail de recuperação sem link visível:** o template padrão do Auth incluía URL de confirmação. **Solução:** template em `supabase/templates/recovery.html` com `content_path = "./supabase/templates/recovery.html"` (relativo à raiz do repo ao rodar o CLI), assunto e corpo em português com `{{ .Token }}` e logo via `{{ .SiteURL }}/logoFull.svg` (exige `site_url` apontando para a app com `public/logoFull.svg` servido; em produção, alguns clientes de e-mail tratam melhor PNG do que SVG no `<img>`).
 - **Saída indevida no fluxo de nova senha:** ao clicar no header durante `/forgot-password` (etapas de código/nova senha), o usuário podia sair do fluxo e cair no `dashboard`. **Solução:** `AuthCard` passou a aceitar `logoHref` opcional e o fluxo de recuperação desabilita o link da logo fora da etapa de e-mail, evitando fuga acidental antes de salvar a senha.
-- **Onboarding de workspace com criação/seleção real:** era necessário transformar a tela estática em fluxo funcional sem convites nesta etapa. **Solução:** `/onboarding/workspace` agora lista workspaces do usuário via `workspace_members`, resolve nomes via tabela `workspaces`, permite selecionar um existente e criar novo via RPC `create_workspace_with_owner`, persistindo o workspace escolhido no browser.
+- **Onboarding de workspace com criação/seleção real:** era necessário transformar a tela estática em fluxo funcional sem convites na primeira versão. **Solução:** `/onboarding/workspace` lista workspaces do usuário via `workspace_members`, resolve nomes em `workspaces`, permite selecionar um existente e criar novo via RPC `create_workspace_with_owner`, persistindo o workspace escolhido no browser.
+- **Convites e papéis sem expor tokens a membros comuns:** era preciso permitir entrada de novos usuários no tenant sem abrir gestão de equipe a quem tem papel `member`. **Solução:** tabela `workspace_invites`, políticas que restringem convites a `owner`/`admin`, RPCs para criar convite e listar diretório com e-mail (join em `auth.users`), Edge `accept-invite` com validação de token e paridade de e-mail, rotas `/settings/workspace-members` e `/accept-invite`, e `login` aceitando `next` interno para retornar ao fluxo de aceite.
 - **Erros de permissão na RPC de criação de workspace:** durante o onboarding ocorreram respostas `403` no endpoint `rpc/create_workspace_with_owner`. **Solução:** migrations adicionais com grants para role `authenticated`, ajuste da função para `security definer`, `grant execute` explícito e policy de leitura de `workspaces` por membership.
 - **Métricas do dashboard por workspace com segurança de acesso:** era necessário consolidar contadores sem expor dados de outros workspaces. **Solução:** RPC `workspace_dashboard_stats(p_workspace uuid)` com `SECURITY DEFINER` e validação explícita de membership por `auth.uid()` + `workspace_members`, retornando total de leads, contagem por estágio (`jsonb`) e sugestões dos últimos 7 dias.
 - **Navegação e UX do onboarding de workspace:** era necessário alinhar comportamento de logos e pós-criação. **Solução:** logos clicáveis redirecionam para `/`, criação de workspace não redireciona automaticamente e atualiza a lista local com o item recém-criado; a continuidade acontece ao selecionar um workspace.
@@ -105,7 +107,8 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Recuperação de senha em `/forgot-password` (e-mail → código → nova senha) com retorno ao login após salvar
 - [x] Política de senha (complexidade) e código OTP de 6 dígitos na recuperação em `/forgot-password`
 - [x] Template de e-mail de recuperação local sem link (código OTP, PT-BR e logo)
-- [x] Onboarding de workspace com criação via RPC e seleção de workspace existente (sem convites nesta branch)
+- [x] Onboarding de workspace com criação via RPC e seleção de workspace existente
+- [x] Convites (`workspace_invites`), RLS de admin para membros/convites, RPCs `create_workspace_invite` e `list_workspace_members_directory`, Edge `accept-invite`, UI `/settings/workspace-members` e `/accept-invite`
 - [x] Migrations de grants/policies para estabilizar RPC de criação de workspace no Supabase local
 - [x] Criação de workspace sem redirect automático, com atualização imediata da lista
 - [x] RPC `workspace_dashboard_stats(p_workspace uuid)` para métricas do dashboard (total de leads, `stage_counts` por `stage_id` e total de sugestões em 7 dias) com `grant execute` para `authenticated` e validação de membership

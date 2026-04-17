@@ -17,5 +17,12 @@ export async function listFunnelStagesByWorkspace(
     throw new Error(error.message);
   }
 
-  return data ?? [];
+  const rows = data ?? [];
+  const byId = new Map<string, FunnelStage>();
+  for (const row of rows) {
+    if (!byId.has(row.id)) {
+      byId.set(row.id, row);
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.position - b.position);
 }
