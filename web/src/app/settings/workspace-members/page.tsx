@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { workspaceRoleLabel } from "@/lib/workspaces/workspace-role-label";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
 
@@ -296,8 +297,8 @@ export default function WorkspaceMembersSettingsPage() {
           {workspaceId && !isCheckingRole && !isAdmin ? (
             <div className="space-y-4">
               <p className="text-sm text-(--text-muted)">
-                Apenas administradores ou o dono do workspace enviam convites e
-                removem membros. Aqui você vê a lista de participantes.
+                Apenas administradores do workspace enviam convites e removem
+                membros. Aqui você vê a lista de participantes.
               </p>
               {isLoadingLists ? (
                 <p className="text-sm text-(--text-muted)">Carregando...</p>
@@ -311,7 +312,9 @@ export default function WorkspaceMembersSettingsPage() {
                       <span className="font-mono text-xs text-(--text-muted)">
                         {row.user_id.slice(0, 8)}…
                       </span>
-                      <span className="font-medium text-text">{row.role}</span>
+                      <span className="font-medium text-text">
+                        {workspaceRoleLabel(row.role)}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -380,7 +383,9 @@ export default function WorkspaceMembersSettingsPage() {
                       >
                         <div>
                           <p className="font-medium text-text">{row.email}</p>
-                          <p className="text-xs text-(--text-muted)">{row.role}</p>
+                          <p className="text-xs text-(--text-muted)">
+                            {workspaceRoleLabel(row.role)}
+                          </p>
                         </div>
                         {row.user_id !== currentUserId && row.role !== "owner" ? (
                           <Button
@@ -414,7 +419,8 @@ export default function WorkspaceMembersSettingsPage() {
                           <div>
                             <p className="font-medium text-text">{row.email}</p>
                             <p className="text-xs text-(--text-muted)">
-                              {row.role} · expira {new Date(row.expires_at).toLocaleString("pt-BR")}
+                              {workspaceRoleLabel(row.role)} · expira{" "}
+                              {new Date(row.expires_at).toLocaleString("pt-BR")}
                             </p>
                             <button
                               type="button"

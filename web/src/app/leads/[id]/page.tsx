@@ -11,6 +11,7 @@ import { useCampaigns } from "@/hooks/use-campaigns";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
 import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
+import { memberAssigneeOptionLabel } from "@/lib/workspaces/member-assignee-label";
 import { getLeadById, updateLead, type Lead } from "@/lib/leads/leads-service";
 import {
   createLeadMessageSuggestions,
@@ -327,7 +328,11 @@ export default function LeadDetailsPage() {
     () =>
       members.map((member) => ({
         value: member.user_id,
-        label: `${member.user_id.slice(0, 8)}... (${member.role})`,
+        label: memberAssigneeOptionLabel(
+          member.user_id,
+          member.email,
+          member.role
+        ),
       })),
     [members]
   );

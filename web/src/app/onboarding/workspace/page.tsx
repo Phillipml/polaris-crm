@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { getAuthErrorMessage } from "@/lib/auth/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { workspaceRoleLabel } from "@/lib/workspaces/workspace-role-label";
 
 type WorkspaceRow = {
   workspace_id: string;
@@ -44,9 +45,11 @@ export default function WorkspaceOnboardingPage() {
         return;
       }
 
+      const userId = sessionData.session.user.id;
       const { data: membershipsRaw, error: membershipsError } = await supabase
         .from("workspace_members")
         .select("workspace_id, role")
+        .eq("user_id", userId)
         .order("created_at", { ascending: true });
 
       if (cancelled) {
@@ -189,7 +192,7 @@ export default function WorkspaceOnboardingPage() {
 
   async function handleDeleteWorkspace(item: WorkspaceRow) {
     if (item.role !== "owner") {
-      setErrorMessage("Apenas owner pode apagar workspace.");
+      setErrorMessage("Apenas o administrador do workspace pode apagar.");
       return;
     }
 
@@ -279,8 +282,8 @@ export default function WorkspaceOnboardingPage() {
                     <p className="text-sm font-semibold text-text">
                       {item.workspace_name ?? "Workspace sem nome"}
                     </p>
-                    <p className="text-xs uppercase tracking-wide text-(--text-muted)">
-                      Perfil: {item.role}
+                    <p className="text-xs tracking-wide text-(--text-muted)">
+                      Perfil: {workspaceRoleLabel(item.role)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
