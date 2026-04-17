@@ -86,13 +86,15 @@ export async function deleteFunnelStage(params: {
   reallocateToStageId?: string;
 }): Promise<void> {
   const supabase = getSupabaseBrowserClient();
+  const reallocate =
+    params.reallocateToStageId &&
+    params.reallocateToStageId.trim() !== ""
+      ? params.reallocateToStageId
+      : undefined;
   const { error } = await supabase.rpc("delete_funnel_stage", {
     p_workspace_id: params.workspaceId,
     p_stage_id: params.stageId,
-    p_reallocate_to_stage_id:
-      params.reallocateToStageId && params.reallocateToStageId.trim() !== ""
-        ? params.reallocateToStageId
-        : null,
+    p_reallocate_to_stage_id: reallocate,
   });
 
   if (error) {
