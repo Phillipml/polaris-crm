@@ -1,5 +1,6 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { insertOutreachSentActivity } from "@/lib/lead-activities/lead-activities-service";
 import { transitionLeadStageAtomic, type Lead } from "@/lib/leads/leads-service";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import type { Database } from "@/lib/supabase/database.types";
 
 type OutreachEventInsert = Database["public"]["Tables"]["outreach_events"]["Insert"];
@@ -45,6 +46,18 @@ export async function sendOutreachAndMoveLead(params: {
     lead_id: params.leadId,
     destination_stage_id: tryingContactStage.id,
   });
+
+  try {
+    await insertOutreachSentActivity({
+      workspaceId: params.workspaceId,
+      leadId: params.leadId,
+      campaignId: params.campaignId,
+      messagePreview: params.message,
+      createdBy: userId,
+    });
+  } catch {
+    return updatedLead;
+  }
 
   return updatedLead;
 }

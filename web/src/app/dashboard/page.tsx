@@ -11,10 +11,13 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useCampaigns } from "@/hooks/use-campaigns";
+import { useCampaignMessageCounts } from "@/hooks/use-campaign-message-counts";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
 import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
 import { useCreateLead, useLeads } from "@/hooks/use-leads";
 import { useStageRequiredFields } from "@/hooks/use-stage-required-fields";
+import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import {
   transitionLeadStageAtomic,
   type Lead,
@@ -39,7 +42,13 @@ export default function DashboardPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [boardLeads, setBoardLeads] = useState<Lead[]>([]);
   const [dragError, setDragError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedStageId, setSelectedStageId] = useState("");
+  const [selectedOwnerUserId, setSelectedOwnerUserId] = useState("");
+  const [conversionFromStageId, setConversionFromStageId] = useState("");
+  const [conversionToStageId, setConversionToStageId] = useState("");
+  const [seriesWindowDays, setSeriesWindowDays] = useState<7 | 14 | 30>(14);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newLeadName, setNewLeadName] = useState("");
   const [newLeadCompany, setNewLeadCompany] = useState("");
@@ -57,7 +66,16 @@ export default function DashboardPage() {
     workspaceId: workspaceId ?? undefined,
     enabled: Boolean(workspaceId),
   });
-  const baseStage = stages[0] ?? null;
+  const uniqueStages = useMemo(() => {
+    const byId = new Map<string, (typeof stages)[number]>();
+    for (const stage of stages) {
+      if (!byId.has(stage.id)) {
+        byId.set(stage.id, stage);
+      }
+    }
+    return [...byId.values()].sort((a, b) => a.position - b.position);
+  }, [stages]);
+  const baseStage = uniqueStages[0] ?? null;
   const {
     leads,
     isLoading: isLoadingLeads,
@@ -65,9 +83,28 @@ export default function DashboardPage() {
     setLeads,
   } = useLeads({
     workspaceId: workspaceId ?? undefined,
+    stageId: selectedStageId || undefined,
+    ownerUserId: selectedOwnerUserId || undefined,
+    searchText: debouncedSearch || undefined,
     enabled: Boolean(workspaceId),
   });
   const { createLead, isLoading: isCreatingLead } = useCreateLead();
+  const { campaigns } = useCampaigns({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId),
+  });
+  const {
+    counts: campaignMessageCounts,
+    isLoading: isLoadingCampaignMessageCounts,
+    error: campaignMessageCountsError,
+  } = useCampaignMessageCounts({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId),
+  });
+  const { members } = useWorkspaceMembers({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId),
+  });
   const {
     requirements: baseStageRequirements,
     isLoading: isLoadingBaseRequirements,
@@ -118,24 +155,46 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    setBoardLeads(leads);
-  }, [leads]);
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, 350);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchInput]);
 
-  const normalizedSearch = search.trim().toLowerCase();
-
-  const visibleLeads = useMemo(() => {
-    if (!normalizedSearch) {
-      return boardLeads;
+  useEffect(() => {
+    if (uniqueStages.length === 0) {
+      setConversionFromStageId("");
+      setConversionToStageId("");
+      return;
     }
-    return boardLeads.filter((lead) =>
-      (lead.full_name ?? "").toLowerCase().includes(normalizedSearch)
+
+    const fromIsValid = uniqueStages.some(
+      (stage) => stage.id === conversionFromStageId
     );
-  }, [boardLeads, normalizedSearch]);
+    const toIsValid = uniqueStages.some((stage) => stage.id === conversionToStageId);
+
+    if (!fromIsValid) {
+      setConversionFromStageId(uniqueStages[0].id);
+    }
+    if (!toIsValid) {
+      setConversionToStageId(
+        (uniqueStages[1] ?? uniqueStages[0]).id
+      );
+    }
+  }, [conversionFromStageId, conversionToStageId, uniqueStages]);
+
+  useEffect(() => {
+    const byId = new Map<string, Lead>();
+    for (const lead of leads) {
+      byId.set(lead.id, lead);
+    }
+    setBoardLeads([...byId.values()]);
+  }, [leads]);
 
   const leadsByStage = useMemo(() => {
     const grouped = new Map<string, Lead[]>();
-    stages.forEach((stage) => grouped.set(stage.id, []));
-    visibleLeads.forEach((lead) => {
+    uniqueStages.forEach((stage) => grouped.set(stage.id, []));
+    boardLeads.forEach((lead) => {
       const list = grouped.get(lead.stage_id);
       if (list) {
         list.push(lead);
@@ -145,20 +204,21 @@ export default function DashboardPage() {
       list.sort((a, b) => a.created_at.localeCompare(b.created_at))
     );
     return grouped;
-  }, [stages, visibleLeads]);
+  }, [boardLeads, uniqueStages]);
 
   const hasAnyLead = boardLeads.length > 0;
-  const hasAnyVisibleLead = visibleLeads.length > 0;
-  const totalAllLeads = boardLeads.length;
-  const totalVisibleLeads = visibleLeads.length;
-  const isSearchActive = normalizedSearch.length > 0;
+  const totalLeads = boardLeads.length;
+  const hasAnyFilter =
+    debouncedSearch.length > 0 ||
+    selectedOwnerUserId.length > 0 ||
+    selectedStageId.length > 0;
 
   const stageStats = useMemo(() => {
     const max = Math.max(
       1,
-      ...stages.map((stage) => leadsByStage.get(stage.id)?.length ?? 0)
+      ...uniqueStages.map((stage) => leadsByStage.get(stage.id)?.length ?? 0)
     );
-    return stages.map((stage) => {
+    return uniqueStages.map((stage) => {
       const count = leadsByStage.get(stage.id)?.length ?? 0;
       return {
         id: stage.id,
@@ -167,7 +227,65 @@ export default function DashboardPage() {
         percent: Math.round((count / max) * 100),
       };
     });
-  }, [stages, leadsByStage]);
+  }, [uniqueStages, leadsByStage]);
+
+  const conversionMetrics = useMemo(() => {
+    const fromCount = conversionFromStageId
+      ? leadsByStage.get(conversionFromStageId)?.length ?? 0
+      : 0;
+    const toCount = conversionToStageId
+      ? leadsByStage.get(conversionToStageId)?.length ?? 0
+      : 0;
+    if (!fromCount) {
+      return { fromCount, toCount, rate: null as number | null };
+    }
+    return {
+      fromCount,
+      toCount,
+      rate: (toCount / fromCount) * 100,
+    };
+  }, [conversionFromStageId, conversionToStageId, leadsByStage]);
+
+  const leadsCreatedSeries = useMemo(() => {
+    const days = seriesWindowDays;
+    const result: { dayKey: string; label: string; total: number }[] = [];
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const day = new Date();
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() - i);
+      const dayKey = day.toISOString().slice(0, 10);
+      result.push({
+        dayKey,
+        label: day.toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        total: 0,
+      });
+    }
+    const indexByKey = new Map(result.map((item, index) => [item.dayKey, index]));
+    for (const lead of boardLeads) {
+      const key = lead.created_at.slice(0, 10);
+      const index = indexByKey.get(key);
+      if (index !== undefined) {
+        result[index].total += 1;
+      }
+    }
+    return result;
+  }, [boardLeads, seriesWindowDays]);
+
+  const maxSeriesCount = useMemo(
+    () => Math.max(1, ...leadsCreatedSeries.map((item) => item.total)),
+    [leadsCreatedSeries]
+  );
+
+  const campaignNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const campaign of campaigns) {
+      map.set(campaign.id, campaign.name);
+    }
+    return map;
+  }, [campaigns]);
 
   async function handleDragEnd(result: DropResult) {
     if (!workspaceId) return;
@@ -308,10 +426,22 @@ export default function DashboardPage() {
               Regras por etapa
             </Link>
             <Link
+              href="/settings/funnel-stages"
+              className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
+            >
+              Etapas do funil
+            </Link>
+            <Link
               href="/settings/campaigns"
               className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
             >
               Campanhas
+            </Link>
+            <Link
+              href="/settings/workspace-members"
+              className="inline-flex items-center justify-center rounded-lg border border-(--border) px-4 py-2.5 text-sm font-semibold text-text transition hover:bg-(--surface-hover)"
+            >
+              Membros
             </Link>
             <a
               href="#kanban-board"
@@ -335,12 +465,38 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(280px,420px)_1fr]">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar lead por nome"
-              className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
-            />
+            <div className="grid gap-2 md:grid-cols-3 lg:col-span-2">
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Buscar por nome, empresa ou e-mail"
+                className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25 md:col-span-3 lg:col-span-1"
+              />
+              <select
+                value={selectedOwnerUserId}
+                onChange={(event) => setSelectedOwnerUserId(event.target.value)}
+                className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+              >
+                <option value="">Todos responsáveis</option>
+                {members.map((member) => (
+                  <option key={member.user_id} value={member.user_id}>
+                    {member.user_id.slice(0, 8)}... ({member.role})
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedStageId}
+                onChange={(event) => setSelectedStageId(event.target.value)}
+                className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+              >
+                <option value="">Todas etapas</option>
+                {uniqueStages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             {showCreateForm ? (
               <div className="grid gap-2 rounded-lg border border-(--border) bg-surface p-3 md:grid-cols-2 xl:grid-cols-4">
                 {baseStage ? (
@@ -469,20 +625,15 @@ export default function DashboardPage() {
               <div className="grid gap-3 sm:max-w-sm">
                 <article className="rounded-xl border border-(--border) bg-surface p-4">
                   <p className="text-xs text-(--text-muted)">
-                    {isSearchActive ? "Leads na busca" : "Total de leads"}
+                    {hasAnyFilter ? "Leads filtrados" : "Total de leads"}
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-text">
-                    {isSearchActive ? totalVisibleLeads : totalAllLeads}
+                    {totalLeads}
                   </p>
-                  {isSearchActive ? (
-                    <p className="mt-1 text-xs text-(--text-muted)">
-                      de {totalAllLeads} no workspace
-                    </p>
-                  ) : null}
                 </article>
               </div>
 
-              {!isSearchActive ? (
+              {!hasAnyFilter ? (
                 <article className="rounded-xl border border-(--border) bg-surface p-4">
                   <h2 className="text-sm font-semibold text-text">
                     Distribuição por etapa
@@ -510,6 +661,141 @@ export default function DashboardPage() {
             </section>
           ) : null}
 
+          {workspaceId && !isLoadingStages && !isLoadingLeads && !hasAnyFilter ? (
+            <section className="mt-6 rounded-xl border border-(--border) bg-surface p-4">
+              <h2 className="text-sm font-semibold text-text">
+                Dashboard secundário
+              </h2>
+              <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                <article className="rounded-lg border border-(--border) bg-(--surface-hover)/20 p-3">
+                  <h3 className="text-xs font-semibold text-text">
+                    Taxa de conversão entre etapas
+                  </h3>
+                  <p className="mt-1 text-xs text-(--text-muted)">
+                    Fórmula: leads na etapa destino / leads na etapa origem * 100
+                  </p>
+                  <div className="mt-3 grid gap-2">
+                    <select
+                      value={conversionFromStageId}
+                      onChange={(event) =>
+                        setConversionFromStageId(event.target.value)
+                      }
+                      className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2 text-xs outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+                    >
+                      {uniqueStages.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          Origem: {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={conversionToStageId}
+                      onChange={(event) => setConversionToStageId(event.target.value)}
+                      className="w-full rounded-lg border border-(--border) bg-surface px-3 py-2 text-xs outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+                    >
+                      {uniqueStages.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          Destino: {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold text-text">
+                    {conversionMetrics.rate == null
+                      ? "—"
+                      : `${conversionMetrics.rate.toFixed(1)}%`}
+                  </p>
+                  <p className="text-xs text-(--text-muted)">
+                    {conversionMetrics.toCount} / {conversionMetrics.fromCount} leads
+                  </p>
+                </article>
+
+                <article className="rounded-lg border border-(--border) bg-(--surface-hover)/20 p-3">
+                  <h3 className="text-xs font-semibold text-text">
+                    Série temporal de leads criados
+                  </h3>
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="text-xs text-(--text-muted)">Período:</p>
+                    <select
+                      value={seriesWindowDays}
+                      onChange={(event) =>
+                        setSeriesWindowDays(Number(event.target.value) as 7 | 14 | 30)
+                      }
+                      className="rounded-lg border border-(--border) bg-surface px-2 py-1 text-xs outline-none transition focus:border-(--primary) focus:ring-2 focus:ring-(--ring)/25"
+                    >
+                      <option value={7}>7 dias</option>
+                      <option value={14}>14 dias</option>
+                      <option value={30}>30 dias</option>
+                    </select>
+                  </div>
+                  <p className="mt-1 text-xs text-(--text-muted)">
+                    Últimos {seriesWindowDays} dias
+                  </p>
+                  <div className="mt-3 grid grid-cols-7 gap-2">
+                    {leadsCreatedSeries.map((item) => (
+                      <div key={item.dayKey} className="space-y-1 text-center">
+                        <div className="flex h-20 items-end justify-center rounded bg-(--surface-hover)/40 p-1">
+                          <div
+                            className="w-4 rounded bg-(--primary)"
+                            style={{
+                              height: `${Math.max(
+                                6,
+                                Math.round((item.total / maxSeriesCount) * 100)
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-(--text-muted)">{item.label}</p>
+                        <p className="text-[10px] font-semibold text-text">
+                          {item.total}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="rounded-lg border border-(--border) bg-(--surface-hover)/20 p-3">
+                  <h3 className="text-xs font-semibold text-text">
+                    Mensagens por campanha
+                  </h3>
+                  {isLoadingCampaignMessageCounts ? (
+                    <p className="mt-2 text-xs text-(--text-muted)">Carregando...</p>
+                  ) : null}
+                  {!isLoadingCampaignMessageCounts && campaignMessageCountsError ? (
+                    <p className="mt-2 text-xs font-medium text-red-500">
+                      {campaignMessageCountsError}
+                    </p>
+                  ) : null}
+                  {!isLoadingCampaignMessageCounts &&
+                  !campaignMessageCountsError &&
+                  campaignMessageCounts.length === 0 ? (
+                    <p className="mt-2 text-xs text-(--text-muted)">
+                      Nenhuma mensagem enviada ainda.
+                    </p>
+                  ) : null}
+                  {!isLoadingCampaignMessageCounts &&
+                  !campaignMessageCountsError &&
+                  campaignMessageCounts.length > 0 ? (
+                    <ul className="mt-2 space-y-2">
+                      {campaignMessageCounts.slice(0, 8).map((item) => (
+                        <li
+                          key={item.campaignId}
+                          className="flex items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="truncate text-(--text-muted)">
+                            {campaignNameById.get(item.campaignId) ??
+                              `Campanha ${item.campaignId.slice(0, 8)}...`}
+                          </span>
+                          <span className="font-semibold text-text">{item.total}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </article>
+              </div>
+            </section>
+          ) : null}
+
           {workspaceId && (isLoadingStages || isLoadingLeads) ? (
             <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
               {Array.from({ length: 7 }).map((_, index) => (
@@ -529,7 +815,7 @@ export default function DashboardPage() {
 
           {workspaceId && !isLoadingStages && !isLoadingLeads ? (
             <>
-              {!hasAnyLead ? (
+              {!hasAnyLead && !hasAnyFilter ? (
                 <div className="mt-6 rounded-xl border border-dashed border-(--border) bg-surface p-8 text-center">
                   <p className="text-sm text-(--text-muted)">
                     Nenhum lead ainda neste workspace.
@@ -544,21 +830,21 @@ export default function DashboardPage() {
                 </div>
               ) : null}
 
-              {hasAnyLead && !hasAnyVisibleLead ? (
+              {hasAnyFilter && !hasAnyLead ? (
                 <div className="mt-6 rounded-xl border border-dashed border-(--border) bg-surface p-8 text-center">
                   <p className="text-sm text-(--text-muted)">
-                    Nenhum lead encontrado para a busca atual.
+                    Nenhum lead encontrado para os filtros atuais.
                   </p>
                 </div>
               ) : null}
 
-              {hasAnyVisibleLead ? (
+              {hasAnyLead ? (
                 <DragDropContext onDragEnd={handleDragEnd}>
                   <div
                     id="kanban-board"
                     className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3"
                   >
-                    {stages.map((stage) => (
+                    {uniqueStages.map((stage) => (
                       <Droppable droppableId={stage.id} key={stage.id}>
                         {(provided, snapshot) => (
                           <section

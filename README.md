@@ -22,6 +22,8 @@
 
 O repositório inclui **`supabase/`** (CLI: `supabase init`) e agora possui migração inicial de multi-tenancy com as tabelas `workspaces` e `workspace_members` em **PostgreSQL via Supabase**. A modelagem usa PK composta em membership (`workspace_id`, `user_id`) para evitar duplicidade de vínculo por usuário no mesmo workspace, com `user_id` ligado a `auth.users.id` para manter coerência com autenticação nativa do Supabase.
 
+A tabela **`lead_activities`** registra eventos de auditoria por lead (`type` em `stage_changed`, `fields_updated`, `outreach_sent`, `payload` em JSONB, `created_by`, `created_at`), com FK composta ao lead (`lead_id`, `workspace_id`) e RLS por membro do workspace. Mudanças de **`stage_id`** são gravadas por trigger em `AFTER UPDATE` em `leads`; edições de campos principais e envio simulado são inseridas pela camada da aplicação após `update` bem-sucedido ou após o fluxo de outreach, para payloads ricos sem duplicar lógica de diff no banco.
+
 A tabela **`campaigns`** (já existente no MVP com `channel`, `description`, `is_active`) foi **estendida** para o edital de campanhas: **`context_markdown`** guarda o contexto da oferta em um único texto longo (Markdown aceito pelo produto); não foi normalizado em várias colunas (oferta, produto, período, etc.) neste passo para manter o MVP simples. **`generation_prompt`** armazena o prompt-base (persona, tom, formato; placeholders para campos do lead serão substituídos na Edge Function). **`trigger_stage_id`** referencia opcionalmente uma etapa do funil do mesmo `workspace_id` para futura automação ao mudar de etapa. **`created_by`** referencia `auth.users` quando o cliente preencher na criação. A tabela **`lead_message_suggestions`** passou a incluir **`source`** (`manual` | `auto_trigger`) e RLS vinculada ao workspace do lead (acesso apenas para membros do workspace relacionado ao `lead_id`). No front, **`/settings/campaigns`** lista campanhas do workspace atual (via `localStorage`), com formulários em **nova** e **`/[id]`** para textos longos, canal, ativo/inativo e **select de etapa gatilho** (`trigger_stage_id`) alinhado às etapas do funil do workspace.
 
 ### Como estruturou a integração com LLM
@@ -36,9 +38,10 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 
 - `workspaces`: entidade de tenant lógico (`id`, `name`, `created_at`).
 - `workspace_members`: vínculo usuário-workspace com papel (`role`) e PK composta (`workspace_id`, `user_id`).
-- RLS inicial: usuário autenticado lê apenas memberships onde `user_id = auth.uid()`.
-- Criação inicial: usuário autenticado pode inserir workspace e inserir apenas o próprio membership como `owner`.
-- Fluxo transacional recomendado via RPC `create_workspace_with_owner(workspace_name)` para criar workspace + owner membership na mesma chamada.
+- `workspace_invites`: convites pendentes com `email`, `role` (`admin` ou `member`), `token` opaco, `expires_at`, `invited_by` e `accepted_at` quando utilizados.
+- Leitura de equipe: qualquer membro do workspace pode `select` em `workspace_members` daquele workspace; alteração ou remoção de membros e gestão de convites ficam com `owner`/`admin` via RLS e funções `SECURITY DEFINER`.
+- Criação do tenant: fluxo via RPC `create_workspace_with_owner(workspace_name)` para criar workspace + membership `owner` na mesma chamada.
+- Convite: RPC `create_workspace_invite(workspace_id, email, role)` gera token e prazo; a Edge `accept-invite` (JWT obrigatório) valida token, expiração, igualdade do e-mail do convite com o usuário autenticado e insere o membership com `service_role`.
 
 ### Desafios encontrados e como resolveu
 
@@ -62,7 +65,8 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - **Política de senha e OTP de recuperação:** o produto precisava de regras claras de complexidade e de um caminho sem clicar no link. **Solução:** validação compartilhada (8+ caracteres com maiúscula, minúscula, número e especial) em cadastro, troca de senha e reset; fluxo com código de 6 dígitos via `verifyOtp` em `/forgot-password`; Auth local alinhado com `password_requirements` no `config.toml`.
 - **E-mail de recuperação sem link visível:** o template padrão do Auth incluía URL de confirmação. **Solução:** template em `supabase/templates/recovery.html` com `content_path = "./supabase/templates/recovery.html"` (relativo à raiz do repo ao rodar o CLI), assunto e corpo em português com `{{ .Token }}` e logo via `{{ .SiteURL }}/logoFull.svg` (exige `site_url` apontando para a app com `public/logoFull.svg` servido; em produção, alguns clientes de e-mail tratam melhor PNG do que SVG no `<img>`).
 - **Saída indevida no fluxo de nova senha:** ao clicar no header durante `/forgot-password` (etapas de código/nova senha), o usuário podia sair do fluxo e cair no `dashboard`. **Solução:** `AuthCard` passou a aceitar `logoHref` opcional e o fluxo de recuperação desabilita o link da logo fora da etapa de e-mail, evitando fuga acidental antes de salvar a senha.
-- **Onboarding de workspace com criação/seleção real:** era necessário transformar a tela estática em fluxo funcional sem convites nesta etapa. **Solução:** `/onboarding/workspace` agora lista workspaces do usuário via `workspace_members`, resolve nomes via tabela `workspaces`, permite selecionar um existente e criar novo via RPC `create_workspace_with_owner`, persistindo o workspace escolhido no browser.
+- **Onboarding de workspace com criação/seleção real:** era necessário transformar a tela estática em fluxo funcional sem convites na primeira versão. **Solução:** `/onboarding/workspace` lista workspaces do usuário via `workspace_members`, resolve nomes em `workspaces`, permite selecionar um existente e criar novo via RPC `create_workspace_with_owner`, persistindo o workspace escolhido no browser.
+- **Convites e papéis sem expor tokens a membros comuns:** era preciso permitir entrada de novos usuários no tenant sem abrir gestão de equipe a quem tem papel `member`. **Solução:** tabela `workspace_invites`, políticas que restringem convites a `owner`/`admin`, RPCs para criar convite e listar diretório com e-mail (join em `auth.users`), Edge `accept-invite` com validação de token e paridade de e-mail, rotas `/settings/workspace-members` e `/accept-invite`, e `login` aceitando `next` interno para retornar ao fluxo de aceite.
 - **Erros de permissão na RPC de criação de workspace:** durante o onboarding ocorreram respostas `403` no endpoint `rpc/create_workspace_with_owner`. **Solução:** migrations adicionais com grants para role `authenticated`, ajuste da função para `security definer`, `grant execute` explícito e policy de leitura de `workspaces` por membership.
 - **Métricas do dashboard por workspace com segurança de acesso:** era necessário consolidar contadores sem expor dados de outros workspaces. **Solução:** RPC `workspace_dashboard_stats(p_workspace uuid)` com `SECURITY DEFINER` e validação explícita de membership por `auth.uid()` + `workspace_members`, retornando total de leads, contagem por estágio (`jsonb`) e sugestões dos últimos 7 dias.
 - **Navegação e UX do onboarding de workspace:** era necessário alinhar comportamento de logos e pós-criação. **Solução:** logos clicáveis redirecionam para `/`, criação de workspace não redireciona automaticamente e atualiza a lista local com o item recém-criado; a continuidade acontece ao selecionar um workspace.
@@ -105,7 +109,8 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Recuperação de senha em `/forgot-password` (e-mail → código → nova senha) com retorno ao login após salvar
 - [x] Política de senha (complexidade) e código OTP de 6 dígitos na recuperação em `/forgot-password`
 - [x] Template de e-mail de recuperação local sem link (código OTP, PT-BR e logo)
-- [x] Onboarding de workspace com criação via RPC e seleção de workspace existente (sem convites nesta branch)
+- [x] Onboarding de workspace com criação via RPC e seleção de workspace existente
+- [x] Convites (`workspace_invites`), RLS de admin para membros/convites, RPCs `create_workspace_invite` e `list_workspace_members_directory`, Edge `accept-invite`, UI `/settings/workspace-members` e `/accept-invite`
 - [x] Migrations de grants/policies para estabilizar RPC de criação de workspace no Supabase local
 - [x] Criação de workspace sem redirect automático, com atualização imediata da lista
 - [x] RPC `workspace_dashboard_stats(p_workspace uuid)` para métricas do dashboard (total de leads, `stage_counts` por `stage_id` e total de sugestões em 7 dias) com `grant execute` para `authenticated` e validação de membership
@@ -115,12 +120,15 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Página de detalhe/edição de lead com seções e salvamento (`/leads/[id]`)
 - [x] Board Kanban no dashboard com drag and drop e persistência de `stage_id`
 - [x] Índice composto garantido em `leads(workspace_id, stage_id)` para consultas por etapa no workspace
-- [x] Board com busca por nome, empty states, skeletons e criação rápida de lead
+- [x] Board com barra de filtros (responsável, etapa e busca textual com debounce), consultas parametrizadas no Supabase, empty states, skeletons e criação rápida de lead
 - [x] Dashboard com card de total, distribuição por barras (oculta durante busca por nome), link rápido para o Kanban
+- [x] Dashboard secundário com taxa de conversão entre etapas selecionadas (fórmula explícita), série temporal de leads criados e contagem de mensagens por campanha
+- [x] Dashboard secundário ocultado durante pesquisa textual para priorizar leitura do Kanban filtrado, com série temporal configurável em 7/14/30 dias
 - [x] Ajustes responsivos do formulário de criação, grade responsiva das colunas do Kanban (sem scroll horizontal do board) e scroll interno por coluna
 - [x] Schema `stage_required_fields` com enum e RLS via vínculo de etapa/workspace
 - [x] Operação atômica de transição de etapa com validação de campos obrigatórios
 - [x] Tela de administração de obrigatoriedades por etapa com preset sugerido
+- [x] CRUD de etapas do funil com reorder (subir/descer) e remoção segura com realocação de leads em modal quando necessário
 - [x] Validação na criação rápida de lead conforme obrigatoriedades da etapa inicial (evita lead “preso” no board)
 - [x] Mensagens de campos obrigatórios no Kanban com rótulos legíveis (ex.: LinkedIn, Cargo) em vez de chaves técnicas
 - [x] Telas `/settings/lead-fields` e `/settings/stage-required-fields` com rótulos e textos para perfil não técnico
@@ -135,10 +143,36 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] `/leads/[id]` com seletor de campanha ativa, botões Gerar/Regenerar, histórico de sugestões em cards e botão Copiar com toast
 - [x] `/leads/[id]`: badge “Gerando sugestões…” com polling enquanto existir `generation_jobs` pendente (até 90s), linha “Última geração automática em …” a partir de `lead_message_suggestions.source = auto_trigger`
 - [x] Botão Enviar em `/leads/[id]`: insert em `outreach_events` e transição para etapa `trying_contact`; em bloqueio por obrigatoriedades mostra orientação de preenchimento/ajuste no seed demo
+- [x] `lead_activities` com trigger de mudança de etapa, registro de edição de campos no salvamento do lead, registro de envio simulado após outreach, e timeline em `/leads/[id]`
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM (expandir fluxos de geração e automação por gatilho de etapa)
 
 ---
+
+## Anexo curto — matriz RLS (tabela x operação x policy)
+
+| Tabela | Select | Insert | Update | Delete |
+|--------|--------|--------|--------|--------|
+| `workspaces` | `select workspaces where member` | `insert workspace as authenticated` | sem policy | sem policy |
+| `workspace_members` | `workspace_members_select_workspace` | `workspace_members_insert_bootstrap_owner` | `workspace_members_update_admin` | `workspace_members_delete_admin` |
+| `workspace_invites` | `workspace_invites_select_admin` | via RPC `SECURITY DEFINER` (`create_workspace_invite`) | sem policy | `workspace_invites_delete_admin` |
+| `funnel_stages` | `funnel_stages_select` | `funnel_stages_insert` | `funnel_stages_update` | `funnel_stages_delete` |
+| `leads` | `leads_select` | `leads_insert` | `leads_update` | `leads_delete` |
+| `campaigns` | `campaigns_select` | `campaigns_insert` | `campaigns_update` | `campaigns_delete` |
+| `lead_message_suggestions` | `lead_message_suggestions_select` | `lead_message_suggestions_insert` | `lead_message_suggestions_update` | `lead_message_suggestions_delete` |
+| `lead_custom_field_definitions` | `lead_custom_field_definitions_select` | `lead_custom_field_definitions_insert` | `lead_custom_field_definitions_update` | `lead_custom_field_definitions_delete` |
+| `stage_required_fields` | `stage_required_fields_select` | `stage_required_fields_insert` | `stage_required_fields_update` | `stage_required_fields_delete` |
+| `outreach_events` | `outreach_events_select` | `outreach_events_insert` | `outreach_events_update` | `outreach_events_delete` |
+| `generation_jobs` | `generation_jobs_select` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` |
+| `lead_activities` | `lead_activities_select` | `lead_activities_insert` | sem grant para `authenticated` | sem grant para `authenticated` |
+| `app_runtime_config` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` |
+| `lead_stage_webhook_campaign_dedupe` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` | sem grant para `authenticated` |
+
+### Teste de isolamento com dois usuários
+
+- Script de smoke test: `supabase/snippets/rls_two_users_smoke_test.sql`.
+- Objetivo: validar que usuário A só enxerga/escreve no workspace A e usuário B só no workspace B.
+- Cobertura mínima no script: `leads` e `lead_activities` (leitura e tentativa de escrita cross-workspace).
 
 ## Web (Next.js) — desenvolvimento rápido
 

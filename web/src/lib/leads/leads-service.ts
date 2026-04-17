@@ -1,3 +1,4 @@
+import { recordFieldsUpdatedActivityIfNeeded } from "@/lib/lead-activities/lead-activities-service";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -10,6 +11,8 @@ export type Lead = LeadRow;
 export type ListLeadsParams = {
   workspaceId: string;
   stageId?: string;
+  ownerUserId?: string;
+  searchText?: string;
 };
 
 export type CreateLeadInput = Omit<
@@ -31,6 +34,8 @@ export type UpdateLeadInput = Omit<
 export async function listLeadsByWorkspaceAndStage({
   workspaceId,
   stageId,
+  ownerUserId,
+  searchText,
 }: ListLeadsParams): Promise<Lead[]> {
   const supabase = getSupabaseBrowserClient();
   let query = supabase
@@ -41,6 +46,18 @@ export async function listLeadsByWorkspaceAndStage({
 
   if (stageId) {
     query = query.eq("stage_id", stageId);
+  }
+
+  if (ownerUserId) {
+    query = query.eq("owner_user_id", ownerUserId);
+  }
+
+  const normalizedSearch = searchText?.trim();
+  if (normalizedSearch) {
+    const escaped = normalizedSearch.replace(/[%_]/g, "\\$&");
+    query = query.or(
+      `full_name.ilike.%${escaped}%,company_name.ilike.%${escaped}%,email.ilike.%${escaped}%`
+    );
   }
 
   const { data, error } = await query;
@@ -89,6 +106,21 @@ export async function getLeadById(params: {
 export async function updateLead(input: UpdateLeadInput): Promise<Lead> {
   const { id, workspace_id, ...patch } = input;
   const supabase = getSupabaseBrowserClient();
+  const { data: before, error: beforeError } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", id)
+    .eq("workspace_id", workspace_id)
+    .maybeSingle();
+
+  if (beforeError) {
+    throw new Error(beforeError.message);
+  }
+
+  if (!before) {
+    throw new Error("Lead não encontrado.");
+  }
+
   const { data, error } = await supabase
     .from("leads")
     .update(patch)
@@ -99,6 +131,18 @@ export async function updateLead(input: UpdateLeadInput): Promise<Lead> {
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  try {
+    await recordFieldsUpdatedActivityIfNeeded({
+      supabase,
+      workspaceId: workspace_id,
+      leadId: id,
+      before,
+      after: data,
+    });
+  } catch {
+    return data;
   }
 
   return data;

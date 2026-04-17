@@ -131,6 +131,41 @@ export type Database = {
           created_at?: string;
         };
       };
+      workspace_invites: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          email: string;
+          role: "admin" | "member";
+          token: string;
+          expires_at: string;
+          invited_by: string;
+          created_at: string;
+          accepted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          email: string;
+          role: "admin" | "member";
+          token: string;
+          expires_at: string;
+          invited_by: string;
+          created_at?: string;
+          accepted_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          email?: string;
+          role?: "admin" | "member";
+          token?: string;
+          expires_at?: string;
+          invited_by?: string;
+          created_at?: string;
+          accepted_at?: string | null;
+        };
+      };
       lead_custom_field_definitions: {
         Row: {
           id: string;
@@ -280,6 +315,35 @@ export type Database = {
           updated_at?: string;
         };
       };
+      lead_activities: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          lead_id: string;
+          type: "stage_changed" | "fields_updated" | "outreach_sent";
+          payload: Json;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          lead_id: string;
+          type: "stage_changed" | "fields_updated" | "outreach_sent";
+          payload?: Json;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          lead_id?: string;
+          type?: "stage_changed" | "fields_updated" | "outreach_sent";
+          payload?: Json;
+          created_by?: string | null;
+          created_at?: string;
+        };
+      };
       outreach_events: {
         Row: {
           id: string;
@@ -318,3 +382,4 @@ export type Database = {
     };
   };
 };
+

@@ -64,6 +64,12 @@ export function UserMenu() {
       </summary>
       <div className="absolute right-0 z-50 mt-2 min-w-[200px] rounded-xl border border-(--border) bg-surface py-1 shadow-lg">
         <Link
+          href="/settings/workspace-members"
+          className="block px-4 py-2.5 text-sm text-text hover:bg-(--surface-hover)"
+        >
+          Membros do workspace
+        </Link>
+        <Link
           href="/account/password"
           className="block px-4 py-2.5 text-sm text-text hover:bg-(--surface-hover)"
         >
