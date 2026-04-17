@@ -59,13 +59,16 @@ Em **Authentication → Providers → Email** (ou políticas de senha no painel,
 
 ### E-mail de recuperação só com código (sem link)
 
-No ambiente local, o template de recuperação está em `supabase/templates/recovery.html` e referenciado em `supabase/config.toml` em `[auth.email.template.recovery]`.
+No ambiente local, os templates HTML estão em `supabase/templates/` e são referenciados em `supabase/config.toml`:
 
-O `content_path` é resolvido em relação à **raiz do repositório** (pasta de onde você roda `npx supabase start` / `stop`), não em relação ao arquivo `config.toml`. Use `./supabase/templates/recovery.html` para que o arquivo seja encontrado no Windows e em outros SO.
+- **`recovery.html`** — `[auth.email.template.recovery]` (código de redefinição de senha, logo e cartão alinhados ao app).
+- **`confirmation.html`** — `[auth.email.template.confirmation]` (confirmação de cadastro: mesma identidade visual, botão com `{{ .ConfirmationURL }}`, link em texto e bloco de código `{{ .Token }}` como no fluxo de recuperação).
+
+O `content_path` é resolvido em relação à **raiz do repositório** (pasta de onde você roda `npx supabase start` / `stop`), não em relação ao arquivo `config.toml`. Use `./supabase/templates/...` para que o arquivo seja encontrado no Windows e em outros SO.
 
 O corpo está em **português**, com logo em `{{ .SiteURL }}/logoFull.svg` (o `site_url` do Auth deve ser a URL da app onde o Next serve `public/logoFull.svg`) e o código em `{{ .Token }}` (6 dígitos), sem `{{ .ConfirmationURL }}`, alinhado ao fluxo em `/forgot-password`.
 
-No **projeto hospedado**, copie o HTML e o assunto para **Authentication → Email Templates → Reset password** (ou equivalente) no painel do Supabase, pois o `config.toml` não aplica templates automaticamente na nuvem.
+No **projeto hospedado**, copie o HTML e o assunto para **Authentication → Email Templates** no painel do Supabase (`Reset password` a partir de `recovery.html`, `Confirm signup` a partir de `confirmation.html`), pois o `config.toml` não aplica templates automaticamente na nuvem.
 
 ### Workspace onboarding (RPC e permissões)
 
