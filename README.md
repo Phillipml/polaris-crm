@@ -128,6 +128,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Schema `stage_required_fields` com enum e RLS via vínculo de etapa/workspace
 - [x] Operação atômica de transição de etapa com validação de campos obrigatórios
 - [x] Tela de administração de obrigatoriedades por etapa com preset sugerido
+- [x] CRUD de etapas do funil com reorder (subir/descer) e remoção segura com realocação de leads em modal quando necessário
 - [x] Validação na criação rápida de lead conforme obrigatoriedades da etapa inicial (evita lead “preso” no board)
 - [x] Mensagens de campos obrigatórios no Kanban com rótulos legíveis (ex.: LinkedIn, Cargo) em vez de chaves técnicas
 - [x] Telas `/settings/lead-fields` e `/settings/stage-required-fields` com rótulos e textos para perfil não técnico
