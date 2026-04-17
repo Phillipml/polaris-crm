@@ -1,4 +1,4 @@
-# 49 — Gatilho de etapa: modo JWT no Kanban e CORS na Edge
+# 82 — Gatilho de etapa: modo JWT no Kanban e CORS na Edge
 
 ## Ação
 

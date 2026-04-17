@@ -1,4 +1,4 @@
-# 73 - Onboarding: perfil de workspace por usuário logado
+# 72 - Onboarding: perfil de workspace por usuário logado
 
 ## Contexto
 

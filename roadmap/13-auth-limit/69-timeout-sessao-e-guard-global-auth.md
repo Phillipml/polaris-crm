@@ -1,4 +1,4 @@
-# 70 - Timeout de sessão e guard global de autenticação
+# 69 - Timeout de sessão e guard global de autenticação
 
 ## Contexto
 

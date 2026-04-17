@@ -47,7 +47,7 @@ export default function LeadDetailsPage() {
   const params = useParams<{ id: string }>();
   const leadId = String(params?.id ?? "");
   const isValidLeadId = isUuid(leadId);
-  const { workspaceId } = useResolvedWorkspaceId();
+  const { workspaceId, isResolving } = useResolvedWorkspaceId();
   const [lead, setLead] = useState<Lead | null>(null);
   const [isLoadingLead, setIsLoadingLead] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -152,7 +152,7 @@ export default function LeadDetailsPage() {
 
   useEffect(() => {
     async function loadLead() {
-      if (!workspaceId || !leadId) {
+      if (!leadId) {
         setIsLoadingLead(false);
         return;
       }
@@ -161,6 +161,16 @@ export default function LeadDetailsPage() {
         setLead(null);
         setErrorMessage("ID de lead inválido.");
         setIsLoadingLead(false);
+        return;
+      }
+
+      if (!workspaceId) {
+        if (isResolving) {
+          setIsLoadingLead(true);
+          return;
+        }
+        setIsLoadingLead(false);
+        setLead(null);
         return;
       }
 
@@ -207,7 +217,7 @@ export default function LeadDetailsPage() {
     }
 
     void loadLead();
-  }, [isValidLeadId, leadId, workspaceId]);
+  }, [isResolving, isValidLeadId, leadId, workspaceId]);
 
   useEffect(() => {
     if (activeCampaigns.length === 0) {
@@ -493,12 +503,22 @@ export default function LeadDetailsPage() {
             </p>
           </div>
 
-          {isLoadingLead ? (
+          {isResolving || isLoadingLead ? (
             <p className="text-sm text-(--text-muted)">Carregando lead...</p>
           ) : null}
 
-          {!isLoadingLead && !lead ? (
-            <p className="text-sm text-red-500">Lead não encontrado.</p>
+          {!isResolving && !workspaceId && leadId && isValidLeadId ? (
+            <p className="text-sm text-(--text-muted)">
+              Selecione um workspace no dashboard para carregar este lead.
+            </p>
+          ) : null}
+
+          {!isResolving && !isLoadingLead && !lead && leadId ? (
+            errorMessage ? (
+              <p className="text-sm text-red-500">{errorMessage}</p>
+            ) : workspaceId && isValidLeadId ? (
+              <p className="text-sm text-red-500">Lead não encontrado.</p>
+            ) : null
           ) : null}
 
           {!isLoadingLead && lead ? (

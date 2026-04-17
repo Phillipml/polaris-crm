@@ -1,4 +1,4 @@
-# 75 - Responsável no lead: rótulo com e-mail e RPC para membros
+# 74 - Responsável no lead: rótulo com e-mail e RPC para membros
 
 ## Contexto
 

@@ -1,4 +1,4 @@
-# 69 - Detector de falha de rede no auth
+# 68 - Detector de falha de rede no auth
 
 ## Contexto
 

@@ -1,4 +1,4 @@
-# 86 — Migrações Supabase: local (reset) e remoto flwzdemuhyveylyvgtcz
+# 79 — Migrações Supabase: local (reset) e remoto flwzdemuhyveylyvgtcz
 
 ## Ação
 

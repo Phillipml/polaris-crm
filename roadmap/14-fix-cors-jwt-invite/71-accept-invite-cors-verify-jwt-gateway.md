@@ -1,4 +1,4 @@
-# 72 - accept-invite: CORS e verify_jwt no gateway
+# 71 - accept-invite: CORS e verify_jwt no gateway
 
 ## Contexto
 
