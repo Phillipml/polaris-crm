@@ -15,6 +15,12 @@ type WorkspaceRow = {
 };
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
+type RpcClient = {
+  rpc: (
+    fn: string,
+    params?: Record<string, unknown>
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
 
 export default function WorkspaceOnboardingPage() {
   const router = useRouter();
@@ -38,7 +44,7 @@ export default function WorkspaceOnboardingPage() {
         return;
       }
 
-      const { data: memberships, error: membershipsError } = await supabase
+      const { data: membershipsRaw, error: membershipsError } = await supabase
         .from("workspace_members")
         .select("workspace_id, role")
         .order("created_at", { ascending: true });
@@ -53,13 +59,18 @@ export default function WorkspaceOnboardingPage() {
         return;
       }
 
-      const workspaceIds = (memberships ?? []).map((item) =>
+      const memberships = (membershipsRaw ?? []) as Array<{
+        workspace_id: string;
+        role: WorkspaceRow["role"];
+      }>;
+
+      const workspaceIds = memberships.map((item) =>
         String(item.workspace_id)
       );
       const workspaceNameById = new Map<string, string>();
 
       if (workspaceIds.length > 0) {
-        const { data: workspaces, error: workspacesError } = await supabase
+        const { data: workspacesRaw, error: workspacesError } = await supabase
           .from("workspaces")
           .select("id, name")
           .in("id", workspaceIds);
@@ -74,14 +85,19 @@ export default function WorkspaceOnboardingPage() {
           return;
         }
 
-        (workspaces ?? []).forEach((workspace) => {
+        const workspaces = (workspacesRaw ?? []) as Array<{
+          id: string;
+          name: string;
+        }>;
+
+        workspaces.forEach((workspace) => {
           workspaceNameById.set(String(workspace.id), String(workspace.name));
         });
       }
 
       const normalized: WorkspaceRow[] = [];
       const seenWorkspaceIds = new Set<string>();
-      for (const item of memberships ?? []) {
+      for (const item of memberships) {
         const wid = String(item.workspace_id);
         if (seenWorkspaceIds.has(wid)) {
           continue;
@@ -126,7 +142,8 @@ export default function WorkspaceOnboardingPage() {
       return;
     }
 
-    const { data, error } = await supabase.rpc("create_workspace_with_owner", {
+    const rpcClient = supabase as unknown as RpcClient;
+    const { data, error } = await rpcClient.rpc("create_workspace_with_owner", {
       workspace_name: trimmedName,
     });
 
@@ -189,7 +206,8 @@ export default function WorkspaceOnboardingPage() {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.rpc("delete_workspace_as_owner", {
+      const rpcClient = supabase as unknown as RpcClient;
+      const { error } = await rpcClient.rpc("delete_workspace_as_owner", {
         p_workspace_id: item.workspace_id,
       });
       if (error) {

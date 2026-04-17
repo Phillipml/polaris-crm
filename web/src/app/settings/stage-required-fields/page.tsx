@@ -111,7 +111,12 @@ export default function StageRequiredFieldsSettingsPage() {
           setIsAdmin(false);
           return;
         }
-        setIsAdmin(data.role === "owner" || data.role === "admin");
+        const member = data as { role: "owner" | "admin" | "member" } | null;
+        if (!member) {
+          setIsAdmin(false);
+          return;
+        }
+        setIsAdmin(member.role === "owner" || member.role === "admin");
       } finally {
         setIsCheckingRole(false);
       }
