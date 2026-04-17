@@ -21,6 +21,7 @@ export default function WorkspaceOnboardingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isSelectingId, setIsSelectingId] = useState<string | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
@@ -169,6 +170,57 @@ export default function WorkspaceOnboardingPage() {
     router.replace("/dashboard");
   }
 
+  async function handleDeleteWorkspace(item: WorkspaceRow) {
+    if (item.role !== "owner") {
+      setErrorMessage("Apenas owner pode apagar workspace.");
+      return;
+    }
+
+    const approved = window.confirm(
+      `Tem certeza que deseja apagar o workspace "${item.workspace_name ?? "sem nome"}"? Esta ação remove leads, etapas e campanhas relacionadas.`
+    );
+    if (!approved) {
+      return;
+    }
+
+    setErrorMessage("");
+    setInfoMessage("");
+    setIsDeletingId(item.workspace_id);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.rpc("delete_workspace_as_owner", {
+        p_workspace_id: item.workspace_id,
+      });
+      if (error) {
+        const normalizedError = error.message.toLowerCase();
+        if (
+          normalizedError.includes("function public.delete_workspace_as_owner") &&
+          normalizedError.includes("does not exist")
+        ) {
+          setErrorMessage(
+            "Não foi possível apagar porque a função ainda não existe no banco local. Rode as migrações do Supabase."
+          );
+          return;
+        }
+        setErrorMessage(getAuthErrorMessage(error.message));
+        return;
+      }
+
+      setWorkspaces((current) =>
+        current.filter((workspace) => workspace.workspace_id !== item.workspace_id)
+      );
+
+      const selectedWorkspaceId = localStorage.getItem(STORAGE_KEY);
+      if (selectedWorkspaceId === item.workspace_id) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      setInfoMessage("Workspace removido com sucesso.");
+    } finally {
+      setIsDeletingId(null);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-bg-base px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-2xl">
@@ -213,15 +265,33 @@ export default function WorkspaceOnboardingPage() {
                       Perfil: {item.role}
                     </p>
                   </div>
-                  <Button
-                    variant="secondary"
-                    disabled={isSelectingId === item.workspace_id}
-                    onClick={() => handleSelectWorkspace(item.workspace_id)}
-                  >
-                    {isSelectingId === item.workspace_id
-                      ? "Entrando..."
-                      : "Selecionar"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      disabled={
+                        isSelectingId === item.workspace_id ||
+                        isDeletingId === item.workspace_id
+                      }
+                      onClick={() => handleSelectWorkspace(item.workspace_id)}
+                      className="px-3 py-2 text-xs"
+                    >
+                      {isSelectingId === item.workspace_id
+                        ? "Entrando..."
+                        : "Selecionar"}
+                    </Button>
+                    {item.role === "owner" ? (
+                      <Button
+                        variant="secondary"
+                        disabled={isDeletingId === item.workspace_id}
+                        onClick={() => void handleDeleteWorkspace(item)}
+                        className="border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-700 hover:bg-red-500/20 dark:text-red-300"
+                      >
+                        {isDeletingId === item.workspace_id
+                          ? "Apagando..."
+                          : "Apagar"}
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
