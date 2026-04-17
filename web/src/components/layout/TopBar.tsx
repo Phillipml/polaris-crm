@@ -24,7 +24,7 @@ export function TopBar() {
             <p className="text-sm font-semibold tracking-tight text-text">
               PolarisCRM
             </p>
-            <p className="text-xs text-(--text-muted)">MVP · App Router</p>
+            <p className="text-xs text-(--text-muted)">Pipeline SDR</p>
           </div>
         </Link>
         <div className="flex items-center gap-3">
