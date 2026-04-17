@@ -173,6 +173,8 @@ Não deixe **`supabase functions serve ... --env-file supabase/.env`** rodando e
 
 Em `supabase/config.toml`, **`campaign-generation`** e **`lead-stage-webhook`** estão com **`verify_jwt = false`** no gateway. Assim o runtime não exige JWT na borda antes do handler (evita **502** / **Missing authorization header** em alguns fluxos com token de sessão e permite o Database Webhook, que manda **`X-Webhook-Secret`** em vez de `Authorization`). A função **`campaign-generation`** continua validando Bearer + `getUser` no código; **`lead-stage-webhook`** continua validando o secret.
 
+O handler de **`campaign-generation`** responde a **`OPTIONS`** com **204** e inclui cabeçalhos **CORS** (`Access-Control-Allow-Origin`, métodos e headers permitidos) em todas as respostas, para o `fetch` / `invoke` a partir do domínio da app (ex.: Vercel) passar no preflight do navegador.
+
 A função **`accept-invite`** está com **`verify_jwt = false`** no gateway: o preflight **OPTIONS** do navegador não envia `Authorization`; com JWT obrigatório na borda o gateway respondia com status não OK e o CORS falhava em produção (ex.: chamada a partir de `https://polaris-crm.vercel.app`). O handler continua exigindo Bearer, valida o usuário com `getUser`, confere o convite e grava membership com a **service role**. Corpo JSON **`{ "token": "<hex do convite>" }`**. Respostas de regra de negócio usam status **200** e campo **`error`** no JSON para o `supabase.functions.invoke` popular `data` sem disparar erro genérico de HTTP.
 
 Após mudar esse trecho do `config.toml`, rode **`stop`** + **`start`** do stack.
