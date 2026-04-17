@@ -54,7 +54,7 @@ export default function NewCampaignPage() {
         is_active: values.is_active,
         context_markdown: values.context_markdown || null,
         generation_prompt: values.generation_prompt,
-        trigger_stage_id: null,
+        trigger_stage_id: values.trigger_stage_id,
         created_by: userId,
       });
       router.replace(`/settings/campaigns/${created.id}`);
@@ -93,7 +93,6 @@ export default function NewCampaignPage() {
               isSubmitting={isLoading}
               formError={formError}
               onSubmit={handleSubmit}
-              triggerStageIdReadOnly={null}
             />
           )}
         </Card>

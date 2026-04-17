@@ -46,6 +46,7 @@ export default function EditCampaignPage() {
       context_markdown: campaign.context_markdown ?? "",
       generation_prompt: campaign.generation_prompt,
       is_active: campaign.is_active,
+      trigger_stage_id: campaign.trigger_stage_id,
     };
   }, [campaign]);
 
@@ -71,6 +72,7 @@ export default function EditCampaignPage() {
         is_active: values.is_active,
         context_markdown: values.context_markdown || null,
         generation_prompt: values.generation_prompt,
+        trigger_stage_id: values.trigger_stage_id,
       });
       await reload();
       setSuccessMessage("Alterações salvas.");
@@ -88,7 +90,7 @@ export default function EditCampaignPage() {
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
         <Card
           title={campaign?.name ? `Editar: ${campaign.name}` : "Editar campanha"}
-          description="Ajuste contexto, prompt e status ativo. O gatilho por etapa ficará disponível em breve."
+          description="Ajuste contexto, prompt, etapa gatilho e status ativo."
         >
           <div className="mb-6">
             <Link
@@ -130,7 +132,6 @@ export default function EditCampaignPage() {
                 isSubmitting={isSaving}
                 formError={formError}
                 onSubmit={handleSubmit}
-                triggerStageIdReadOnly={campaign.trigger_stage_id}
               />
             </>
           ) : null}
