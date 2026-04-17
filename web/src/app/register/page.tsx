@@ -29,28 +29,31 @@ export default function RegisterPage() {
     }
 
     setIsSubmitting(true);
+    try {
+      const redirectTo = `${window.location.origin}/login`;
+      const supabase = getSupabaseBrowserClient();
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: redirectTo },
+      });
 
-    const redirectTo = `${window.location.origin}/login`;
-    const supabase = getSupabaseBrowserClient();
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: { emailRedirectTo: redirectTo },
-    });
+      if (error) {
+        setErrorMessage(getAuthErrorMessage(error));
+        return;
+      }
 
-    setIsSubmitting(false);
+      if (data.session) {
+        router.push("/onboarding/workspace");
+        return;
+      }
 
-    if (error) {
-      setErrorMessage(getAuthErrorMessage(error.message));
-      return;
+      router.push("/email-confirmation-pending");
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (data.session) {
-      router.push("/onboarding/workspace");
-      return;
-    }
-
-    router.push("/email-confirmation-pending");
   }
 
   return (

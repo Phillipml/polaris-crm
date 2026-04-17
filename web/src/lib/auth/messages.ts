@@ -1,9 +1,38 @@
-export function getAuthErrorMessage(errorMessage?: string): string {
+function extractMessage(errorInput?: unknown): string {
+  if (typeof errorInput === "string") {
+    return errorInput;
+  }
+
+  if (
+    errorInput &&
+    typeof errorInput === "object" &&
+    "message" in errorInput &&
+    typeof (errorInput as { message?: unknown }).message === "string"
+  ) {
+    return (errorInput as { message: string }).message;
+  }
+
+  return "";
+}
+
+export function getAuthErrorMessage(errorInput?: unknown): string {
+  const errorMessage = extractMessage(errorInput);
   if (!errorMessage) {
     return "Não foi possível concluir a operação. Tente novamente.";
   }
 
   const normalized = errorMessage.toLowerCase();
+
+  if (
+    normalized.includes("failed to fetch") ||
+    normalized.includes("networkerror") ||
+    normalized.includes("network request failed") ||
+    normalized.includes("name_not_resolved") ||
+    normalized.includes("err_name_not_resolved") ||
+    normalized.includes("dns")
+  ) {
+    return "Falha de rede ao conectar com o servidor de autenticação. Verifique DNS/conexão e tente novamente.";
+  }
 
   if (
     normalized.includes("invalid login credentials") ||

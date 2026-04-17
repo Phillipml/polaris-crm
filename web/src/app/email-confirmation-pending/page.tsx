@@ -23,17 +23,6 @@ export default function EmailConfirmationPendingPage() {
           Enviamos um link de confirmação para o e-mail informado no cadastro.
           Abra sua caixa de entrada e clique no link para concluir.
         </p>
-        <p>
-          Em ambiente local com Supabase CLI, verifique os e-mails no Inbucket:
-          <a
-            href="http://127.0.0.1:54324"
-            className="ml-1 font-semibold text-(--primary) hover:underline"
-            target="_blank"
-            rel="noreferrer"
-          >
-            http://127.0.0.1:54324
-          </a>
-        </p>
       </div>
     </AuthCard>
   );
