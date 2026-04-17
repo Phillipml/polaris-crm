@@ -31,6 +31,13 @@ type BasicMember = {
   created_at: string;
 };
 
+type RpcClient = {
+  rpc: (
+    fn: string,
+    params?: Record<string, unknown>
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
 export default function WorkspaceMembersSettingsPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -78,11 +85,12 @@ export default function WorkspaceMembersSettingsPage() {
           .eq("workspace_id", workspaceId)
           .eq("user_id", userId)
           .single();
-        if (error || !data) {
+        const member = data as { role: "owner" | "admin" | "member" } | null;
+        if (error || !member) {
           setIsAdmin(false);
           return;
         }
-        setIsAdmin(data.role === "owner" || data.role === "admin");
+        setIsAdmin(member.role === "owner" || member.role === "admin");
       } finally {
         setIsCheckingRole(false);
       }
@@ -98,8 +106,9 @@ export default function WorkspaceMembersSettingsPage() {
     setErrorMessage(null);
     try {
       const supabase = getSupabaseBrowserClient();
+      const rpcClient = supabase as unknown as RpcClient;
       if (isAdmin) {
-        const dirRes = await supabase.rpc("list_workspace_members_directory", {
+        const dirRes = await rpcClient.rpc("list_workspace_members_directory", {
           p_workspace: workspaceId,
         });
         if (dirRes.error) {
@@ -165,7 +174,8 @@ export default function WorkspaceMembersSettingsPage() {
     setLastInviteUrl(null);
     try {
       const supabase = getSupabaseBrowserClient();
-      const { data, error } = await supabase.rpc("create_workspace_invite", {
+      const rpcClient = supabase as unknown as RpcClient;
+      const { data, error } = await rpcClient.rpc("create_workspace_invite", {
         p_workspace_id: workspaceId,
         p_email: trimmed,
         p_role: inviteRole,
