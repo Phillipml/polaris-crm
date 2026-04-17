@@ -117,23 +117,15 @@ export default function EditCampaignPage() {
             </p>
           ) : null}
           {workspaceId && campaign && initialValues ? (
-            <>
-              <div aria-live="polite" className="mb-4 min-h-6">
-                {successMessage ? (
-                  <p className="text-sm font-medium text-emerald-600">
-                    {successMessage}
-                  </p>
-                ) : null}
-              </div>
-              <CampaignForm
-                stages={stages}
-                initialValues={initialValues}
-                submitLabel="Salvar alterações"
-                isSubmitting={isSaving}
-                formError={formError}
-                onSubmit={handleSubmit}
-              />
-            </>
+            <CampaignForm
+              stages={stages}
+              initialValues={initialValues}
+              submitLabel="Salvar alterações"
+              isSubmitting={isSaving}
+              formError={formError}
+              successMessage={successMessage}
+              onSubmit={handleSubmit}
+            />
           ) : null}
         </Card>
       </div>
