@@ -315,6 +315,35 @@ export type Database = {
           updated_at?: string;
         };
       };
+      lead_activities: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          lead_id: string;
+          type: "stage_changed" | "fields_updated" | "outreach_sent";
+          payload: Json;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          lead_id: string;
+          type: "stage_changed" | "fields_updated" | "outreach_sent";
+          payload?: Json;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          lead_id?: string;
+          type?: "stage_changed" | "fields_updated" | "outreach_sent";
+          payload?: Json;
+          created_by?: string | null;
+          created_at?: string;
+        };
+      };
       outreach_events: {
         Row: {
           id: string;

@@ -22,6 +22,8 @@
 
 O repositório inclui **`supabase/`** (CLI: `supabase init`) e agora possui migração inicial de multi-tenancy com as tabelas `workspaces` e `workspace_members` em **PostgreSQL via Supabase**. A modelagem usa PK composta em membership (`workspace_id`, `user_id`) para evitar duplicidade de vínculo por usuário no mesmo workspace, com `user_id` ligado a `auth.users.id` para manter coerência com autenticação nativa do Supabase.
 
+A tabela **`lead_activities`** registra eventos de auditoria por lead (`type` em `stage_changed`, `fields_updated`, `outreach_sent`, `payload` em JSONB, `created_by`, `created_at`), com FK composta ao lead (`lead_id`, `workspace_id`) e RLS por membro do workspace. Mudanças de **`stage_id`** são gravadas por trigger em `AFTER UPDATE` em `leads`; edições de campos principais e envio simulado são inseridas pela camada da aplicação após `update` bem-sucedido ou após o fluxo de outreach, para payloads ricos sem duplicar lógica de diff no banco.
+
 A tabela **`campaigns`** (já existente no MVP com `channel`, `description`, `is_active`) foi **estendida** para o edital de campanhas: **`context_markdown`** guarda o contexto da oferta em um único texto longo (Markdown aceito pelo produto); não foi normalizado em várias colunas (oferta, produto, período, etc.) neste passo para manter o MVP simples. **`generation_prompt`** armazena o prompt-base (persona, tom, formato; placeholders para campos do lead serão substituídos na Edge Function). **`trigger_stage_id`** referencia opcionalmente uma etapa do funil do mesmo `workspace_id` para futura automação ao mudar de etapa. **`created_by`** referencia `auth.users` quando o cliente preencher na criação. A tabela **`lead_message_suggestions`** passou a incluir **`source`** (`manual` | `auto_trigger`) e RLS vinculada ao workspace do lead (acesso apenas para membros do workspace relacionado ao `lead_id`). No front, **`/settings/campaigns`** lista campanhas do workspace atual (via `localStorage`), com formulários em **nova** e **`/[id]`** para textos longos, canal, ativo/inativo e **select de etapa gatilho** (`trigger_stage_id`) alinhado às etapas do funil do workspace.
 
 ### Como estruturou a integração com LLM
@@ -138,6 +140,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] `/leads/[id]` com seletor de campanha ativa, botões Gerar/Regenerar, histórico de sugestões em cards e botão Copiar com toast
 - [x] `/leads/[id]`: badge “Gerando sugestões…” com polling enquanto existir `generation_jobs` pendente (até 90s), linha “Última geração automática em …” a partir de `lead_message_suggestions.source = auto_trigger`
 - [x] Botão Enviar em `/leads/[id]`: insert em `outreach_events` e transição para etapa `trying_contact`; em bloqueio por obrigatoriedades mostra orientação de preenchimento/ajuste no seed demo
+- [x] `lead_activities` com trigger de mudança de etapa, registro de edição de campos no salvamento do lead, registro de envio simulado após outreach, e timeline em `/leads/[id]`
 - [ ] Telas de negócio SDR (cadastros, pipeline, tarefas)
 - [ ] Integração com LLM (expandir fluxos de geração e automação por gatilho de etapa)
 

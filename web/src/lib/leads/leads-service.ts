@@ -1,3 +1,4 @@
+import { recordFieldsUpdatedActivityIfNeeded } from "@/lib/lead-activities/lead-activities-service";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -89,6 +90,21 @@ export async function getLeadById(params: {
 export async function updateLead(input: UpdateLeadInput): Promise<Lead> {
   const { id, workspace_id, ...patch } = input;
   const supabase = getSupabaseBrowserClient();
+  const { data: before, error: beforeError } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", id)
+    .eq("workspace_id", workspace_id)
+    .maybeSingle();
+
+  if (beforeError) {
+    throw new Error(beforeError.message);
+  }
+
+  if (!before) {
+    throw new Error("Lead não encontrado.");
+  }
+
   const { data, error } = await supabase
     .from("leads")
     .update(patch)
@@ -99,6 +115,18 @@ export async function updateLead(input: UpdateLeadInput): Promise<Lead> {
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  try {
+    await recordFieldsUpdatedActivityIfNeeded({
+      supabase,
+      workspaceId: workspace_id,
+      leadId: id,
+      before,
+      after: data,
+    });
+  } catch {
+    return data;
   }
 
   return data;

@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { LeadActivitiesTimeline } from "@/components/leads/LeadActivitiesTimeline";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useCampaigns } from "@/hooks/use-campaigns";
+import { useFunnelStages } from "@/hooks/use-funnel-stages";
 import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { getLeadById, updateLead, type Lead } from "@/lib/leads/leads-service";
@@ -16,8 +18,13 @@ import {
   listLeadMessageSuggestions,
   type LeadMessageSuggestion,
 } from "@/lib/lead-message-suggestions/lead-message-suggestions-service";
+import {
+  listLeadActivities,
+  type LeadActivity,
+} from "@/lib/lead-activities/lead-activities-service";
 import { sendOutreachAndMoveLead } from "@/lib/outreach-events/outreach-events-service";
 import { fetchLeadGenerationSignals } from "@/lib/generation-jobs/generation-jobs-service";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import type { Json } from "@/lib/supabase/database.types";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
@@ -54,6 +61,10 @@ export default function LeadDetailsPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [hasPendingGenerationJob, setHasPendingGenerationJob] = useState(false);
   const [lastAutoGenerationAt, setLastAutoGenerationAt] = useState<string | null>(null);
+  const [activities, setActivities] = useState<LeadActivity[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [activitiesError, setActivitiesError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [standardForm, setStandardForm] = useState<StandardFormState>({
     full_name: "",
@@ -83,6 +94,10 @@ export default function LeadDetailsPage() {
     workspaceId: workspaceId ?? undefined,
     enabled: Boolean(workspaceId),
   });
+  const { stages } = useFunnelStages({
+    workspaceId: workspaceId ?? undefined,
+    enabled: Boolean(workspaceId),
+  });
   const activeCampaigns = useMemo(
     () => campaigns.filter((item) => item.is_active),
     [campaigns]
@@ -92,6 +107,52 @@ export default function LeadDetailsPage() {
     const stored = localStorage.getItem(STORAGE_KEY);
     setWorkspaceId(stored);
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const supabase = getSupabaseBrowserClient();
+      const { data } = await supabase.auth.getUser();
+      setCurrentUserId(data.user?.id ?? null);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!workspaceId || !lead?.id) {
+      setActivities([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setActivitiesLoading(true);
+    setActivitiesError(null);
+
+    void (async () => {
+      try {
+        const rows = await listLeadActivities({
+          workspaceId,
+          leadId: lead.id,
+        });
+        if (!cancelled) {
+          setActivities(rows);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setActivitiesError(
+            err instanceof Error ? err.message : "Erro ao carregar atividades."
+          );
+          setActivities([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setActivitiesLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, lead?.id, lead?.updated_at]);
 
   useEffect(() => {
     async function loadLead() {
@@ -441,6 +502,7 @@ export default function LeadDetailsPage() {
           ) : null}
 
           {!isLoadingLead && lead ? (
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
             <form className="space-y-8" onSubmit={handleSave}>
               <section className="space-y-4">
                 <h2 className="text-base font-semibold">Dados padrão</h2>
@@ -772,6 +834,18 @@ export default function LeadDetailsPage() {
                 {isSaving ? "Salvando..." : "Salvar lead"}
               </Button>
             </form>
+            <LeadActivitiesTimeline
+              activities={activities}
+              isLoading={activitiesLoading}
+              error={activitiesError}
+              currentUserId={currentUserId}
+              stages={stages}
+              campaigns={campaigns.map((item) => ({
+                id: item.id,
+                name: item.name,
+              }))}
+            />
+            </div>
           ) : null}
         </Card>
         <div
