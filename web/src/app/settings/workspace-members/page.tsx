@@ -5,10 +5,9 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { workspaceRoleLabel } from "@/lib/workspaces/workspace-role-label";
-
-const STORAGE_KEY = "polaris.currentWorkspaceId";
 
 type MemberRow = {
   user_id: string;
@@ -40,7 +39,7 @@ type RpcClient = {
 };
 
 export default function WorkspaceMembersSettingsPage() {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId } = useResolvedWorkspaceId();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCheckingRole, setIsCheckingRole] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -56,11 +55,6 @@ export default function WorkspaceMembersSettingsPage() {
   const [isLoadingLists, setIsLoadingLists] = useState(false);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [removingInviteId, setRemovingInviteId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   useEffect(() => {
     async function checkRole() {

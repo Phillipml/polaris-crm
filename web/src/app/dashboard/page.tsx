@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/Card";
 import { useCampaigns } from "@/hooks/use-campaigns";
 import { useCampaignMessageCounts } from "@/hooks/use-campaign-message-counts";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
 import { useCreateLead, useLeads } from "@/hooks/use-leads";
 import { useStageRequiredFields } from "@/hooks/use-stage-required-fields";
@@ -31,8 +32,6 @@ import {
   type LeadSnapshotForRequirements,
 } from "@/lib/stage-required-fields/validate-lead-for-stage-requirements";
 
-const STORAGE_KEY = "polaris.currentWorkspaceId";
-
 const PRIMARY_CREATE_STANDARD = new Set([
   "full_name",
   "company_name",
@@ -40,7 +39,8 @@ const PRIMARY_CREATE_STANDARD = new Set([
 ]);
 
 export default function DashboardPage() {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId, isResolving: isResolvingWorkspace } =
+    useResolvedWorkspaceId();
   const [boardLeads, setBoardLeads] = useState<Lead[]>([]);
   const [dragError, setDragError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -149,11 +149,6 @@ export default function DashboardPage() {
     setAdditionalStandard({});
     setCustomRequirementValues({});
   }, [showCreateForm]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -610,9 +605,20 @@ export default function DashboardPage() {
             {!dragError && leadsError ? (
               <p className="text-sm font-medium text-red-500">{leadsError}</p>
             ) : null}
-            {!workspaceId ? (
+            {!isResolvingWorkspace && !workspaceId ? (
               <p className="text-sm text-(--text-muted)">
-                Selecione um workspace em onboarding para visualizar o board.
+                Selecione um workspace em onboarding para visualizar o board. Se
+                você resetou o banco, o workspace salvo foi limpo: escolha de
+                novo em onboarding.
+              </p>
+            ) : null}
+            {!isResolvingWorkspace &&
+            workspaceId &&
+            !isLoadingStages &&
+            uniqueStages.length === 0 ? (
+              <p className="text-sm font-medium text-amber-600">
+                Nenhuma etapa neste workspace. Abra Configurações → Etapas do
+                funil ou confira se o workspace está correto.
               </p>
             ) : null}
             {!dragError && !leadsError && createError ? (

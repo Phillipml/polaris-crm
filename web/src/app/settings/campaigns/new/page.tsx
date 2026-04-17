@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   CampaignForm,
@@ -11,24 +11,18 @@ import {
 import { Card } from "@/components/ui/Card";
 import { useCreateCampaign } from "@/hooks/use-campaigns";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
-
-const STORAGE_KEY = "polaris.currentWorkspaceId";
 
 export default function NewCampaignPage() {
   const router = useRouter();
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId } = useResolvedWorkspaceId();
   const [formError, setFormError] = useState<string | null>(null);
   const { stages } = useFunnelStages({
     workspaceId: workspaceId ?? undefined,
     enabled: Boolean(workspaceId),
   });
   const { createCampaign, isLoading } = useCreateCampaign();
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   async function handleSubmit(values: CampaignFormValues) {
     if (!workspaceId) {

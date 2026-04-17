@@ -25,10 +25,10 @@ import {
 } from "@/lib/lead-activities/lead-activities-service";
 import { sendOutreachAndMoveLead } from "@/lib/outreach-events/outreach-events-service";
 import { fetchLeadGenerationSignals } from "@/lib/generation-jobs/generation-jobs-service";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import type { Json } from "@/lib/supabase/database.types";
 
-const STORAGE_KEY = "polaris.currentWorkspaceId";
 const GENERATION_POLL_MS = 2000;
 const GENERATION_POLL_MAX_MS = 90_000;
 
@@ -47,7 +47,7 @@ export default function LeadDetailsPage() {
   const params = useParams<{ id: string }>();
   const leadId = String(params?.id ?? "");
   const isValidLeadId = isUuid(leadId);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId } = useResolvedWorkspaceId();
   const [lead, setLead] = useState<Lead | null>(null);
   const [isLoadingLead, setIsLoadingLead] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -103,11 +103,6 @@ export default function LeadDetailsPage() {
     () => campaigns.filter((item) => item.is_active),
     [campaigns]
   );
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   useEffect(() => {
     void (async () => {

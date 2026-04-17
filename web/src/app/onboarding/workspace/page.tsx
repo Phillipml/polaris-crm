@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { getAuthErrorMessage } from "@/lib/auth/messages";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+import { WORKSPACE_STORAGE_KEY } from "@/hooks/use-resolved-workspace-id";
 import { workspaceRoleLabel } from "@/lib/workspaces/workspace-role-label";
 
 type WorkspaceRow = {
@@ -15,7 +16,6 @@ type WorkspaceRow = {
   workspace_name: string | null;
 };
 
-const STORAGE_KEY = "polaris.currentWorkspaceId";
 type RpcClient = {
   rpc: (
     fn: string,
@@ -163,7 +163,7 @@ export default function WorkspaceOnboardingPage() {
       return;
     }
 
-    localStorage.setItem(STORAGE_KEY, workspaceId);
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, workspaceId);
     const newWorkspace: WorkspaceRow = {
       workspace_id: workspaceId,
       role: "owner",
@@ -186,7 +186,7 @@ export default function WorkspaceOnboardingPage() {
     setErrorMessage("");
     setInfoMessage("");
     setIsSelectingId(workspaceId);
-    localStorage.setItem(STORAGE_KEY, workspaceId);
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, workspaceId);
     router.replace("/dashboard");
   }
 
@@ -232,9 +232,9 @@ export default function WorkspaceOnboardingPage() {
         current.filter((workspace) => workspace.workspace_id !== item.workspace_id)
       );
 
-      const selectedWorkspaceId = localStorage.getItem(STORAGE_KEY);
+      const selectedWorkspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
       if (selectedWorkspaceId === item.workspace_id) {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(WORKSPACE_STORAGE_KEY);
       }
       setInfoMessage("Workspace removido com sucesso.");
     } finally {

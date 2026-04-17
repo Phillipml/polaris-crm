@@ -6,6 +6,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { useFunnelStages } from "@/hooks/use-funnel-stages";
 import { useLeadCustomFieldDefinitions } from "@/hooks/use-lead-custom-field-definitions";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 import {
   useCreateStageRequiredField,
   useDeleteStageRequiredField,
@@ -16,7 +17,6 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import { STANDARD_LEAD_FIELD_LABELS } from "@/lib/stage-required-fields/lead-field-labels";
 import type { StageRequiredFieldKind } from "@/lib/stage-required-fields/stage-required-fields-service";
 
-const STORAGE_KEY = "polaris.currentWorkspaceId";
 const standardFieldKeys = [
   "full_name",
   "company_name",
@@ -40,7 +40,7 @@ const leadMapeadoPreset: Array<{
 ];
 
 export default function StageRequiredFieldsSettingsPage() {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId } = useResolvedWorkspaceId();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCheckingRole, setIsCheckingRole] = useState(true);
   const [selectedStageId, setSelectedStageId] = useState<string>("");
@@ -67,11 +67,6 @@ export default function StageRequiredFieldsSettingsPage() {
     useCreateStageRequiredField();
   const { deleteRequirement, isLoading: isDeleting } =
     useDeleteStageRequiredField();
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   useEffect(() => {
     if (!stages.length) {

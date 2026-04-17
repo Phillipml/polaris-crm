@@ -1,24 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { useCampaigns } from "@/hooks/use-campaigns";
-
-const STORAGE_KEY = "polaris.currentWorkspaceId";
+import { useResolvedWorkspaceId } from "@/hooks/use-resolved-workspace-id";
 
 export default function CampaignsListPage() {
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { workspaceId } = useResolvedWorkspaceId();
   const { campaigns, isLoading, error } = useCampaigns({
     workspaceId: workspaceId ?? undefined,
     enabled: Boolean(workspaceId),
   });
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setWorkspaceId(stored);
-  }, []);
 
   return (
     <AppShell>
