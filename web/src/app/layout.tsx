@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans } from "next/font/google";
 import Script from "next/script";
+import { SessionGuardian } from "@/components/auth/SessionGuardian";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { getThemeBootstrapScript } from "@/lib/theme/bootstrap-script";
 import { getServerTheme } from "@/lib/theme/server-theme";
@@ -35,7 +36,10 @@ export default async function RootLayout({
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: getThemeBootstrapScript() }}
         />
-        <ThemeProvider initialTheme={serverTheme}>{children}</ThemeProvider>
+        <ThemeProvider initialTheme={serverTheme}>
+          <SessionGuardian />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
