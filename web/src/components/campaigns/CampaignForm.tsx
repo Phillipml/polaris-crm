@@ -16,6 +16,7 @@ export type CampaignFormValues = {
   context_markdown: string;
   generation_prompt: string;
   is_active: boolean;
+  trigger_stage_id: string | null;
 };
 
 type CampaignFormProps = {
@@ -25,7 +26,6 @@ type CampaignFormProps = {
   isSubmitting: boolean;
   formError: string | null;
   onSubmit: (values: CampaignFormValues) => Promise<void>;
-  triggerStageIdReadOnly: string | null;
 };
 
 export function CampaignForm({
@@ -35,7 +35,6 @@ export function CampaignForm({
   isSubmitting,
   formError,
   onSubmit,
-  triggerStageIdReadOnly,
 }: CampaignFormProps) {
   const [name, setName] = useState(initialValues?.name ?? "");
   const [channel, setChannel] = useState(initialValues?.channel ?? "email");
@@ -49,6 +48,9 @@ export function CampaignForm({
     initialValues?.generation_prompt ?? ""
   );
   const [isActive, setIsActive] = useState(initialValues?.is_active ?? true);
+  const [triggerStageId, setTriggerStageId] = useState(
+    initialValues?.trigger_stage_id ?? ""
+  );
 
   useEffect(() => {
     if (!initialValues) return;
@@ -58,6 +60,7 @@ export function CampaignForm({
     setContextMarkdown(initialValues.context_markdown ?? "");
     setGenerationPrompt(initialValues.generation_prompt ?? "");
     setIsActive(initialValues.is_active ?? true);
+    setTriggerStageId(initialValues.trigger_stage_id ?? "");
   }, [initialValues]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -69,6 +72,7 @@ export function CampaignForm({
       context_markdown: contextMarkdown,
       generation_prompt: generationPrompt,
       is_active: isActive,
+      trigger_stage_id: triggerStageId.trim() === "" ? null : triggerStageId,
     });
   }
 
@@ -148,41 +152,32 @@ export function CampaignForm({
       </div>
 
       <div className="grid gap-2">
-        <span
-          className="text-sm font-medium text-text"
-          id="trigger-stage-label"
-        >
+        <label htmlFor="campaign-trigger-stage" className="text-sm font-medium text-text">
           Etapa gatilho
-        </span>
-        <span
-          className="inline-block w-full max-w-md"
-          title="Em breve: automação ao mudar o lead de etapa."
+        </label>
+        <select
+          id="campaign-trigger-stage"
+          value={triggerStageId}
+          onChange={(event) => setTriggerStageId(event.target.value)}
+          className={`${inputClass} max-w-md`}
         >
-          <select
-            aria-labelledby="trigger-stage-label"
-            disabled
-            value={triggerStageIdReadOnly ?? ""}
-            className={`${inputClass} cursor-not-allowed opacity-70`}
-          >
-            {!triggerStageIdReadOnly ? (
-              <option value="">Nenhuma — em breve</option>
-            ) : null}
-            {triggerStageIdReadOnly &&
-            !stages.some((s) => s.id === triggerStageIdReadOnly) ? (
-              <option value={triggerStageIdReadOnly}>
-                Etapa salva (não listada no funil atual)
-              </option>
-            ) : null}
-            {stages.map((stage) => (
-              <option key={stage.id} value={stage.id}>
-                {stage.name}
-              </option>
-            ))}
-          </select>
-        </span>
+          <option value="">Nenhuma (sem disparo automático ao mudar etapa)</option>
+          {triggerStageId &&
+          triggerStageId.trim() !== "" &&
+          !stages.some((s) => s.id === triggerStageId) ? (
+            <option value={triggerStageId}>
+              Etapa salva (não listada no funil atual)
+            </option>
+          ) : null}
+          {stages.map((stage) => (
+            <option key={stage.id} value={stage.id}>
+              {stage.name}
+            </option>
+          ))}
+        </select>
         <p className="text-xs text-(--text-muted)">
-          Seleção desabilitada por enquanto. Em breve você poderá disparar a
-          campanha ao atingir uma etapa do funil.
+          Com campanha ativa, ao mover o lead para esta etapa no funil o sistema pode gerar
+          sugestões automaticamente (Edge e webhook configurados no Supabase).
         </p>
       </div>
 

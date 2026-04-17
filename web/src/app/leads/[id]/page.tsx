@@ -17,9 +17,12 @@ import {
   type LeadMessageSuggestion,
 } from "@/lib/lead-message-suggestions/lead-message-suggestions-service";
 import { sendOutreachAndMoveLead } from "@/lib/outreach-events/outreach-events-service";
+import { fetchLeadGenerationSignals } from "@/lib/generation-jobs/generation-jobs-service";
 import type { Json } from "@/lib/supabase/database.types";
 
 const STORAGE_KEY = "polaris.currentWorkspaceId";
+const GENERATION_POLL_MS = 2000;
+const GENERATION_POLL_MAX_MS = 90_000;
 
 type StandardFormState = {
   full_name: string;
@@ -49,6 +52,8 @@ export default function LeadDetailsPage() {
   const [suggestions, setSuggestions] = useState<LeadMessageSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [hasPendingGenerationJob, setHasPendingGenerationJob] = useState(false);
+  const [lastAutoGenerationAt, setLastAutoGenerationAt] = useState<string | null>(null);
 
   const [standardForm, setStandardForm] = useState<StandardFormState>({
     full_name: "",
@@ -187,6 +192,67 @@ export default function LeadDetailsPage() {
 
     void loadSuggestions();
   }, [lead, selectedCampaignId, workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId || !lead || !isValidLeadId) {
+      setHasPendingGenerationJob(false);
+      setLastAutoGenerationAt(null);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const signals = await fetchLeadGenerationSignals({
+          workspaceId,
+          leadId: lead.id,
+        });
+        setHasPendingGenerationJob(signals.hasPending);
+        setLastAutoGenerationAt(signals.lastAutoAt);
+      } catch {
+        setHasPendingGenerationJob(false);
+      }
+    })();
+  }, [workspaceId, lead, isValidLeadId]);
+
+  useEffect(() => {
+    if (!hasPendingGenerationJob || !workspaceId || !lead || !isValidLeadId) {
+      return;
+    }
+
+    const leadId = lead.id;
+
+    const run = async () => {
+      try {
+        const signals = await fetchLeadGenerationSignals({
+          workspaceId,
+          leadId,
+        });
+        setHasPendingGenerationJob(signals.hasPending);
+        setLastAutoGenerationAt(signals.lastAutoAt);
+        if (selectedCampaignId) {
+          const rows = await listLeadMessageSuggestions({
+            workspaceId,
+            leadId,
+            campaignId: selectedCampaignId,
+          });
+          setSuggestions(rows);
+        }
+      } catch {
+        setHasPendingGenerationJob(false);
+      }
+    };
+
+    void run();
+    const intervalId = window.setInterval(() => void run(), GENERATION_POLL_MS);
+    const stopId = window.setTimeout(() => {
+      window.clearInterval(intervalId);
+    }, GENERATION_POLL_MAX_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(stopId);
+    };
+  }, [hasPendingGenerationJob, workspaceId, lead, isValidLeadId, selectedCampaignId]);
 
   useEffect(() => {
     if (!toastMessage) {
@@ -570,6 +636,19 @@ export default function LeadDetailsPage() {
 
               <section className="space-y-4">
                 <h2 className="text-base font-semibold">Geração de mensagens</h2>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  {hasPendingGenerationJob ? (
+                    <span className="inline-flex w-fit items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                      Gerando sugestões…
+                    </span>
+                  ) : null}
+                  {lastAutoGenerationAt ? (
+                    <p className="text-xs text-(--text-muted)">
+                      Última geração automática em{" "}
+                      {new Date(lastAutoGenerationAt).toLocaleString("pt-BR")}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="grid gap-3 rounded-xl border border-(--border) bg-(--surface-hover)/25 p-4">
                   <div className="grid gap-2 sm:max-w-md">
                     <label htmlFor="campaign-selector" className="text-sm font-medium">

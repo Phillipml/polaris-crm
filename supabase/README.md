@@ -136,6 +136,20 @@ Consulte a [documentação oficial](https://supabase.com/docs/guides/cli) para f
 
 Funções ficam em `supabase/functions/<nome>/` com `index.ts` e, por função, um `deno.json` (compiler strict, libs Deno), alinhado ao runtime em `config.toml` (`[edge_runtime]`, `deno_version`).
 
+### Variáveis no local (`supabase start`)
+
+O edge runtime carrega **`supabase/functions/.env`** ao subir o stack. Mantenha ali pelo menos **`LLM_PROVIDER`**, **`LLM_MODEL`**, **`LLM_API_KEY`** e, se usar o webhook de etapa, **`LEAD_STAGE_WEBHOOK_SECRET`**. Modelo em **`supabase/functions/.env.example`**.
+
+Fluxo recomendado: edite `supabase/.env` (ignorado pelo git), copie para `supabase/functions/.env` e rode **`npx supabase@latest stop`** + **`start`**. Só rodar `secrets set --env-file supabase/.env` **não** repõe essas chaves dentro do container da Edge após um `stop`/`start` da mesma forma que o arquivo em `functions/`.
+
+Não deixe **`supabase functions serve ... --env-file supabase/.env`** rodando em paralelo ao stack se esse `.env` tiver só `LLM_*`: o processo recarrega o Kong e a função pode ver **503** por faltar `SUPABASE_URL` / chaves no ambiente daquele processo.
+
+### Gateway: `verify_jwt`
+
+Em `supabase/config.toml`, **`campaign-generation`** e **`lead-stage-webhook`** estão com **`verify_jwt = false`** no gateway. Assim o runtime não exige JWT na borda antes do handler (evita **502** / **Missing authorization header** em alguns fluxos com token de sessão e permite o Database Webhook, que manda **`X-Webhook-Secret`** em vez de `Authorization`). A função **`campaign-generation`** continua validando Bearer + `getUser` no código; **`lead-stage-webhook`** continua validando o secret.
+
+Após mudar esse trecho do `config.toml`, rode **`stop`** + **`start`** do stack.
+
 ### Função de exemplo: `campaign-generation`
 
 Endpoint HTTP `POST` para gerar mensagens a partir de campanha e lead.
@@ -152,7 +166,7 @@ Fluxo:
 - resolve `workspace_id` via lead e valida membership (`workspace_members`)
 - carrega campanha + lead + definições de campos customizados
 - monta prompt em seções `CONTEXTO`, `INSTRUCOES`, `DADOS DO LEAD`
-- chama Google Gemini e força resposta JSON `{ "messages": string[] }` com 2–3 itens
+- chama **Gemini** (`LLM_PROVIDER=google`) ou **Groq** (`LLM_PROVIDER=groq`) e obtém JSON `{ "messages": string[] }` com 2–3 itens
 - responde `401`, `403`, `404` conforme cenário de auth/autorização/registro ausente
 
 ### Secrets `LLM_*` (servidor apenas)
@@ -171,14 +185,83 @@ Nunca commite chaves reais (`LLM_API_KEY`, tokens, credenciais). Mantenha apenas
 
 | Variável | Descrição |
 |----------|-----------|
-| `LLM_PROVIDER` | Provedor (`openai`, `anthropic`, `google`, …). |
-| `LLM_MODEL` | Id do modelo (ex.: `gpt-4o-mini`, `claude-3-5-haiku-latest`, `gemini-2.0-flash`). |
-| `LLM_API_KEY` | Chave do provedor. |
+| `LLM_PROVIDER` | **`google`** (Gemini) ou **`groq`** (chat completions OpenAI-compatible). Outros valores retornam `missing_or_invalid_llm_config`. |
+| `LLM_MODEL` | Com **`google`**: id Gemini (ex.: `gemini-2.0-flash`). Com **`groq`**: id do modelo no Groq (ex.: `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`). |
+| `LLM_API_KEY` | Chave **Google AI** ou **Groq**, conforme o provedor. |
+
+Respostas **429** da API (“quota exceeded”, “free_tier”, `limit: 0`) vêm do **plano e limites da chave** no Google, não do código: conferir [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits), uso em [Google AI Studio](https://aistudio.google.com/), habilitar **billing** no projeto Cloud se precisar de cota paga, ou trocar `LLM_MODEL` por um modelo com cota disponível na conta; após alterar `supabase/functions/.env`, `stop`/`start` do stack.
+
+Se a Edge retornar **`missing_or_invalid_llm_config`**, o JSON inclui **`detail`** com flags do tipo `LLM_API_KEY_missing`, `LLM_MODEL_missing`, `LLM_PROVIDER_missing` ou `LLM_PROVIDER_must_be_google_or_groq`. Em geral o ambiente local **não** carregou `LLM_*` do arquivo certo: confira **`supabase/functions/.env`** (não só `supabase/.env`), o nome exato das chaves (**`LLM_PROVIDER`** com três letras **`L`**, não `LM_PROVIDER`), valores **sem aspas**, `LLM_PROVIDER` em minúsculas (`groq` ou `google`) e reinicie com **`stop`** + **`start`**.
 
 ### Rodar localmente
 
 ```bash
 npx supabase@latest functions serve campaign-generation
+```
+
+## Destino HTTP do Database Webhook — `lead-stage-webhook`
+
+Esta Edge é o **endpoint HTTP** configurado no **Database Webhook** (ou chamado pelo trigger `pg_net` opcional). Ela recebe o payload, extrai **`record.id` → `lead_id`** e **`record.stage_id` → `new_stage_id`** (e `old_record.stage_id` como estágio anterior), busca campanhas **`is_active = true`** com **`trigger_stage_id = new_stage_id`** e, para cada campanha, executa geração (Gemini ou Groq, conforme `LLM_PROVIDER`) e persiste **`lead_message_suggestions`** com **`source = auto_trigger`**.
+
+### Regra exata de disparo
+
+- **Fonte oficial do evento:** `UPDATE` na tabela `public.leads`.
+- **Condição para processar:** `NEW.stage_id IS DISTINCT FROM OLD.stage_id` (ignora updates que não mudam estágio, inclusive quando outros campos mudam).
+- **INSERT:** não dispara este pipeline (o lead nasce já em uma etapa; não há “transição” de estágio anterior). Use geração manual ou outro fluxo se precisar de conteúdo na criação.
+
+### Duas formas de entrega (use só uma em produção para evitar duplicidade)
+
+1. **Database Webhook (painel Supabase)** em `public.leads` → evento **UPDATE** → `POST` na Edge `lead-stage-webhook` com header **`X-Webhook-Secret`** igual ao secret configurado na Edge (`LEAD_STAGE_WEBHOOK_SECRET`). Filtre no painel, quando disponível, para payloads em que `record.stage_id` difere de `old_record.stage_id`.
+2. **Trigger opcional com `pg_net` (migration `20260417140000`, chaves renomeadas na `20260417160000`)** que chama a mesma URL quando `public.app_runtime_config` tiver **`lead_stage_webhook_url`** e **`lead_stage_webhook_secret`** preenchidos. Com secret vazio, o trigger **não** envia HTTP (no-op).
+
+### Testes locais antes da nuvem (recomendado)
+
+No **`supabase start`**, a URL padrão em `app_runtime_config` já aponta para **`http://kong:8000/functions/v1/lead-stage-webhook`** (rede Docker interna: Postgres → Kong → Edge). O que costuma faltar no dia zero é o **secret no banco**: após definir **`LEAD_STAGE_WEBHOOK_SECRET`** em **`supabase/functions/.env`**, alinhe o mesmo valor em **`public.app_runtime_config`** (não commite o valor no Git):
+
+```sql
+update public.app_runtime_config
+set value = 'MESMO_VALOR_QUE_LEAD_STAGE_WEBHOOK_SECRET_NO_ENV'
+where key = 'lead_stage_webhook_secret';
+```
+
+Execute no **SQL Editor** do Studio local (`http://127.0.0.1:54323` após `supabase start`). Não é obrigatório criar **Database Webhook** no painel se o `pg_net` já estiver ativo com URL + secret preenchidos (em produção, use **só um** dos dois canais para evitar dupla geração).
+
+Para ver se o HTTP saiu: tabelas **`net.http_request_queue`** / **`net._http_response`** (conforme versão da extensão) ou logs do container da Edge.
+
+### Segurança na Edge
+
+- A função compara **`X-Webhook-Secret`** com a variável de ambiente **`LEAD_STAGE_WEBHOOK_SECRET`** (via `supabase secrets set`). Sem match → **401** (header ausente) ou **403** (valor inválido). Não hardcode segredo no repositório.
+
+### Idempotência (estratégia de “rodada”)
+
+- Tabela `public.lead_stage_webhook_campaign_dedupe` com chave primária **`(lead_id, campaign_id, old_stage_id, new_stage_id, leads_updated_at)`**, onde **`leads_updated_at` é o `updated_at` do lead após o `UPDATE` commitado** (mesma “rodada” = mesma transição no banco). Isso evita duas gerações idênticas para o mesmo **lead + campanha + transição + instante de commit** quando o provedor reentrega o webhook ou há trigger + webhook em paralelo.
+- Se o lead voltar a cruzar a mesma aresta de funil mais tarde, **`leads.updated_at` muda**, portanto **uma nova rodada** pode gerar de novo (comportamento desejado frente a um PK só com estágios).
+- A unicidade **`(lead_id, campaign_id, variant_index)`** em `lead_message_suggestions` continua garantindo que não haja colisão de variantes dentro da mesma campanha.
+- Se a geração LLM ou o insert em `lead_message_suggestions` falhar após marcar dedupe, a Edge remove a linha de dedupe daquela campanha **e daquele `leads_updated_at`** para permitir retry.
+
+### Semântica de commit e observabilidade
+
+- O **`UPDATE` do lead já foi commitado** antes do webhook/HTTP retornar. Se a Edge falhar, o estágio **permanece alterado**; o retry depende do provedor (Database Webhook no painel costuma ter tentativas; `pg_net` expõe fila/respostas em `net._http_response` / `net.http_request_queue` conforme versão).
+- Logs: **Supabase Dashboard → Edge Functions → Logs** para `lead-stage-webhook`; entregas do Database Webhook no painel de Database Webhooks; no local, terminal do `functions serve`.
+
+### Matching de campanhas
+
+- A Edge só gera automaticamente para campanhas **`is_active = true`** e **`trigger_stage_id` igual ao novo `stage_id`** do lead. Para testar no Kanban, defina a etapa gatilho em **Configurações → Campanhas** (criar/editar) ou ajuste `trigger_stage_id` no banco.
+
+### Acompanhamento na UI (`generation_jobs`)
+
+- Tabela **`public.generation_jobs`**: ao iniciar o processamento com campanhas a gerar, a Edge insere **`status = pending`** (no máximo um pendente por `lead_id`); ao terminar com sucesso marca **`completed`**, em erro **`failed`**. Membros do workspace podem **`select`** para a tela **`/leads/[id]`** fazer polling e exibir o badge “Gerando sugestões…”.
+
+### Secrets adicionais
+
+| Variável | Descrição |
+|----------|-----------|
+| `LEAD_STAGE_WEBHOOK_SECRET` | Segredo compartilhado entre Database Webhook (header) e Edge. |
+
+### Rodar a Edge localmente
+
+```bash
+npx supabase@latest functions serve lead-stage-webhook
 ```
 
 ## Parar o ambiente local

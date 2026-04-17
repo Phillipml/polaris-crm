@@ -1,4 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  describeInvalidLlmEnv,
+  generateMessageVariants,
+  isAllowedLlmProvider,
+} from "../_shared/llm-messages.ts";
 
 type GenerateRequestBody = {
   campaign_id?: string;
@@ -118,75 +123,6 @@ function buildPrompt(params: {
   ].join("\n");
 }
 
-function parseGeneratedMessages(rawText: string): string[] | null {
-  try {
-    const parsed = JSON.parse(rawText) as { messages?: unknown };
-    if (!Array.isArray(parsed.messages)) {
-      return null;
-    }
-    const cleaned = parsed.messages
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
-    if (cleaned.length < 2 || cleaned.length > 3) {
-      return null;
-    }
-    return cleaned;
-  } catch {
-    return null;
-  }
-}
-
-async function generateWithGemini(params: {
-  apiKey: string;
-  model: string;
-  prompt: string;
-}): Promise<string[]> {
-  const endpoint =
-    `https://generativelanguage.googleapis.com/v1beta/models/` +
-    `${encodeURIComponent(params.model)}:generateContent?key=${encodeURIComponent(params.apiKey)}`;
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json; charset=utf-8" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: params.prompt }] }],
-      generationConfig: {
-        temperature: 0.6,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            messages: {
-              type: "array",
-              minItems: 2,
-              maxItems: 3,
-              items: { type: "string" },
-            },
-          },
-          required: ["messages"],
-        },
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`llm_request_failed:${response.status}`);
-  }
-
-  const payload = (await response.json()) as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ text?: string }> };
-    }>;
-  };
-  const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  const parsed = parseGeneratedMessages(raw);
-  if (!parsed) {
-    throw new Error("llm_invalid_output");
-  }
-  return parsed;
-}
-
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return jsonResponse({ error: "method_not_allowed" }, 405);
@@ -207,8 +143,14 @@ Deno.serve(async (request) => {
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     return jsonResponse({ error: "missing_supabase_env" }, 503);
   }
-  if (provider !== "google" || !model || !apiKey) {
-    return jsonResponse({ error: "missing_or_invalid_llm_config" }, 503);
+  if (!isAllowedLlmProvider(provider) || !model?.trim() || !apiKey?.trim()) {
+    return jsonResponse(
+      {
+        error: "missing_or_invalid_llm_config",
+        detail: describeInvalidLlmEnv(provider, model, apiKey),
+      },
+      503
+    );
   }
 
   const authClient = createClient<Database>(supabaseUrl, anonKey, {
@@ -310,7 +252,8 @@ Deno.serve(async (request) => {
   const prompt = buildPrompt({ campaign, lead, customFieldPairs });
 
   try {
-    const messages = await generateWithGemini({
+    const messages = await generateMessageVariants({
+      provider: provider ?? "",
       apiKey,
       model,
       prompt,
@@ -318,6 +261,6 @@ Deno.serve(async (request) => {
     return jsonResponse({ messages });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "llm_unknown_error";
-    return jsonResponse({ error: "generation_failed", detail }, 502);
+    return jsonResponse({ error: "generation_failed", detail }, 500);
   }
 });
