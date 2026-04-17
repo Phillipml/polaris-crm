@@ -22,10 +22,12 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [timeoutInfo, setTimeoutInfo] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setResetSuccess(params.get("reset") === "1");
+    setTimeoutInfo(params.get("timeout") === "1");
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -78,6 +80,14 @@ export default function LoginPage() {
             className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700"
           >
             Senha alterada com sucesso. Entre com sua nova senha.
+          </p>
+        ) : null}
+        {timeoutInfo ? (
+          <p
+            role="status"
+            className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-700"
+          >
+            Sua sessão expirou por inatividade. Faça login novamente.
           </p>
         ) : null}
         <div className="space-y-1.5">

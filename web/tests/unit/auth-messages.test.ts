@@ -85,9 +85,21 @@ describe("getAuthErrorMessage", () => {
     );
   });
 
+  it("mapeia erro de dns name not resolved", () => {
+    expect(getAuthErrorMessage("net::ERR_NAME_NOT_RESOLVED")).toBe(
+      "Falha de rede ao conectar com o servidor de autenticação. Verifique DNS/conexão e tente novamente."
+    );
+  });
+
   it("aceita objeto de erro nativo", () => {
     expect(getAuthErrorMessage(new Error("network request failed"))).toBe(
       "Falha de rede ao conectar com o servidor de autenticação. Verifique DNS/conexão e tente novamente."
+    );
+  });
+
+  it("mantém fallback para objeto sem message", () => {
+    expect(getAuthErrorMessage({ code: "unexpected" })).toBe(
+      "Não foi possível concluir a operação. Tente novamente."
     );
   });
 

@@ -108,6 +108,7 @@ Foi implementada a base de **multi-tenancy por workspace** no Supabase:
 - [x] Menu de conta na `TopBar` com logout e acesso à troca de senha
 - [x] Recuperação de senha em `/forgot-password` (e-mail → código → nova senha) com retorno ao login após salvar
 - [x] Detector de falha de rede/DNS no auth (`login`, `register`, `forgot-password`) com mensagem amigável para troubleshooting de conectividade com Supabase
+- [x] Guard global de sessão em rotas protegidas + logout automático por inatividade (timeout) com redirecionamento seguro para `/login`
 - [x] Política de senha (complexidade) e código OTP de 6 dígitos na recuperação em `/forgot-password`
 - [x] Template de e-mail de recuperação local sem link (código OTP, PT-BR e logo)
 - [x] Onboarding de workspace com criação via RPC e seleção de workspace existente
