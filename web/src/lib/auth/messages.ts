@@ -57,6 +57,13 @@ export function getAuthErrorMessage(errorMessage?: string): string {
   }
 
   if (
+    normalized.includes("function public.delete_workspace_as_owner") &&
+    normalized.includes("does not exist")
+  ) {
+    return "A função de apagar workspace ainda não está no banco. Aplique as migrações do Supabase e tente novamente.";
+  }
+
+  if (
     normalized.includes("not authenticated") ||
     normalized.includes("jwt") ||
     normalized.includes("permission denied") ||
